@@ -131,15 +131,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                 </div>
               </div>
 
-              {/* Tên giáo viên */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase">Giáo viên chủ nhiệm:</label>
-                <input
-                  type="text"
-                  value={activeClass.teacherName}
-                  onChange={(e) => updateClass({ ...activeClass, teacherName: e.target.value })}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500"
-                />
+              {/* Tên giáo viên & Phòng học */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Giáo viên chủ nhiệm:</label>
+                  <input
+                    type="text"
+                    value={activeClass.teacherName}
+                    onChange={(e) => updateClass({ ...activeClass, teacherName: e.target.value })}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Phòng học:</label>
+                  <input
+                    type="text"
+                    value={activeClass.roomName}
+                    onChange={(e) => updateClass({ ...activeClass, roomName: e.target.value })}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
               </div>
 
               {/* Tải ảnh Logo lớp học & Avatar Giáo viên */}
