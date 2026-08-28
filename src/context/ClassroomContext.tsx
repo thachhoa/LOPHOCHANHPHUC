@@ -125,7 +125,8 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (saved) {
       try {
         const parsed: Classroom[] = JSON.parse(saved);
-        return parsed.map(c => {
+        const filtered = parsed.filter(c => c.id !== 'class-4b');
+        return filtered.map(c => {
           if (c.id === 'class-3a' && (c.teacherName === 'Cô Võ Châu Thanh' || c.name === 'Lớp 3A - Sao Băng')) {
             return { ...c, name: 'Lớp Học Hạnh Phúc', teacherName: 'Cô Thạch Hòa', code: 'HP-2025' };
           }
@@ -140,7 +141,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const [activeClassId, setActiveClassId] = useState<string>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.ACTIVE_CLASS) || localStorage.getItem('lophoc_active_class_v1');
-    return saved && INITIAL_CLASSES.some(c => c.id === saved) ? saved : INITIAL_CLASSES[0].id;
+    return saved && saved !== 'class-4b' && INITIAL_CLASSES.some(c => c.id === saved) ? saved : INITIAL_CLASSES[0].id;
   });
 
   // Students
