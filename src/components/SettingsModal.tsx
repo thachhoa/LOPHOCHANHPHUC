@@ -15,6 +15,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     setAiApiKey,
     activeModel,
     setActiveModel,
+    activeClass,
+    updateClass,
   } = useClassroom();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -24,6 +26,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     message: '',
   });
   const [isSaved, setIsSaved] = useState(false);
+
+  const classLogoInputRef = useRef<HTMLInputElement>(null);
+  const teacherAvatarInputRef = useRef<HTMLInputElement>(null);
+
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>, field: 'avatar' | 'teacherAvatar') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      updateClass({
+        ...activeClass,
+        [field]: base64,
+      });
+    };
+    reader.readAsDataURL(file);
+  };
 
   if (!isOpen) return null;
 
@@ -83,6 +102,103 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
         {/* Scrollable Body Content */}
         <div className="flex-1 overflow-y-auto p-6 pt-4 space-y-6">
+          {/* Section 0: Thông tin lớp học & Giáo viên */}
+          <div className="space-y-3">
+            <h4 className="font-bold text-slate-700 text-xs uppercase tracking-wider">
+              Thông tin lớp học & Giáo viên
+            </h4>
+            
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 space-y-4">
+              {/* Tên lớp & Năm học */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Tên lớp học:</label>
+                  <input
+                    type="text"
+                    value={activeClass.name}
+                    onChange={(e) => updateClass({ ...activeClass, name: e.target.value })}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Năm học:</label>
+                  <input
+                    type="text"
+                    value={activeClass.academicYear}
+                    onChange={(e) => updateClass({ ...activeClass, academicYear: e.target.value })}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+              </div>
+
+              {/* Tên giáo viên */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase">Giáo viên chủ nhiệm:</label>
+                <input
+                  type="text"
+                  value={activeClass.teacherName}
+                  onChange={(e) => updateClass({ ...activeClass, teacherName: e.target.value })}
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              {/* Tải ảnh Logo lớp học & Avatar Giáo viên */}
+              <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-200/50">
+                {/* Logo lớp */}
+                <div className="flex flex-col items-center justify-center p-2 bg-white rounded-xl border border-slate-200">
+                  <span className="text-[10px] font-bold text-slate-500 mb-2 uppercase">Logo Lớp Học</span>
+                  <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-slate-100 flex items-center justify-center overflow-hidden mb-2 relative group">
+                    {activeClass.avatar ? (
+                      <img src={activeClass.avatar} alt="Logo Lớp" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-xs font-bold text-emerald-600 uppercase">{activeClass.name.substring(0, 2)}</span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => classLogoInputRef.current?.click()}
+                    className="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[9px] font-bold cursor-pointer transition-colors"
+                  >
+                    Chọn logo
+                  </button>
+                  <input
+                    type="file"
+                    ref={classLogoInputRef}
+                    onChange={(e) => handleLogoChange(e, 'avatar')}
+                    accept="image/*"
+                    className="hidden"
+                  />
+                </div>
+
+                {/* Avatar Giáo viên */}
+                <div className="flex flex-col items-center justify-center p-2 bg-white rounded-xl border border-slate-200">
+                  <span className="text-[10px] font-bold text-slate-500 mb-2 uppercase">Ảnh Giáo Viên</span>
+                  <div className="w-12 h-12 rounded-full bg-blue-50 border border-slate-100 flex items-center justify-center overflow-hidden mb-2 relative group">
+                    {activeClass.teacherAvatar ? (
+                      <img src={activeClass.teacherAvatar} alt="GVCN" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-xs font-bold text-blue-600 uppercase">{activeClass.teacherName.substring(0, 2)}</span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => teacherAvatarInputRef.current?.click()}
+                    className="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[9px] font-bold cursor-pointer transition-colors"
+                  >
+                    Chọn ảnh
+                  </button>
+                  <input
+                    type="file"
+                    ref={teacherAvatarInputRef}
+                    onChange={(e) => handleLogoChange(e, 'teacherAvatar')}
+                    accept="image/*"
+                    className="hidden"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Section 1: Sao lưu & Khôi phục */}
           <div className="space-y-3">
             <h4 className="font-bold text-slate-700 text-xs uppercase tracking-wider">
