@@ -41,14 +41,20 @@ export const Sidebar: React.FC = () => {
     <aside className="w-64 bg-white border-r border-slate-100 flex flex-col h-screen shrink-0 select-none shadow-xs">
       {/* Brand Header */}
       <div className="p-5 border-b border-slate-100 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-2xl bg-linear-to-tr from-emerald-500 via-teal-500 to-cyan-500 flex items-center justify-center shadow-md shadow-emerald-500/20 text-white font-bold text-lg">
-          <Sparkles className="w-5 h-5" />
+        <div className="w-10 h-10 rounded-2xl border border-slate-100 flex items-center justify-center shadow-md overflow-hidden bg-emerald-50 shrink-0">
+          {activeClass.avatar ? (
+            <img src={activeClass.avatar} alt="Logo Lớp" className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full bg-linear-to-tr from-emerald-500 via-teal-500 to-cyan-500 flex items-center justify-center text-white">
+              <Sparkles className="w-5 h-5" />
+            </div>
+          )}
         </div>
-        <div>
-          <h1 className="font-extrabold text-slate-800 text-base tracking-tight flex items-center gap-1.5">
-            Lớp Học Vui Vẻ
+        <div className="min-w-0">
+          <h1 className="font-extrabold text-slate-800 text-sm tracking-tight truncate leading-normal">
+            {activeClass.name}
           </h1>
-          <p className="text-[11px] text-emerald-600 font-medium">EdTech Classroom</p>
+          <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider truncate">EdTech Classroom</p>
         </div>
       </div>
 
@@ -81,9 +87,18 @@ export const Sidebar: React.FC = () => {
             <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
 
-          <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-200/50">
-            <span>GVCN: <strong className="text-slate-700">{activeClass.teacherName}</strong></span>
-            <span>Sĩ số: <strong className="text-emerald-700 font-bold">{currentStudents.length}</strong></span>
+          <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500 pt-2 border-t border-slate-200/50">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <div className="w-5 h-5 rounded-full bg-blue-50 border border-slate-100 flex items-center justify-center overflow-hidden shrink-0">
+                {activeClass.teacherAvatar ? (
+                  <img src={activeClass.teacherAvatar} alt="GVCN" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-[8px] font-bold text-blue-600 uppercase">{activeClass.teacherName.substring(0, 2)}</span>
+                )}
+              </div>
+              <span className="truncate">GV: <strong className="text-slate-700">{activeClass.teacherName}</strong></span>
+            </div>
+            <span className="shrink-0 pl-1.5 text-right">Sĩ số: <strong className="text-emerald-700 font-bold">{currentStudents.length}</strong></span>
           </div>
         </div>
       </div>
