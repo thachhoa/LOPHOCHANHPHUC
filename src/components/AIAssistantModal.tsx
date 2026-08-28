@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Sparkles, Send, Brain, User, AlertCircle, Copy, Check } from 'lucide-react';
 import { useClassroom } from '../context/ClassroomContext';
 import { Student } from '../types';
-import { GoogleGenAI } from '@google/genai';
 
 export const AIAssistantModal: React.FC = () => {
   const {
@@ -87,7 +86,6 @@ Ghi chú hiện tại: ${targetStudent.notes || 'Không có'}
     if (aiApiKey) {
       const modelList = ['gemini-3-flash-preview', 'gemini-3-pro-preview', 'gemini-2.5-flash'];
       const uniqueModels = Array.from(new Set([activeModel, ...modelList]));
-      const ai = new GoogleGenAI({ apiKey: aiApiKey });
       
       let success = false;
       let lastErrorText = '';
@@ -102,13 +100,33 @@ Ghi chú hiện tại: ${targetStudent.notes || 'Không có'}
         setAiLogs([...logs]);
 
         try {
-          const response = await ai.models.generateContent({
-            model: modelName,
-            contents: `${systemInstruction}\n\n${prompt}`,
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${aiApiKey}`;
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              contents: [{
+                parts: [{ text: prompt }]
+              }],
+              systemInstruction: {
+                parts: [{ text: systemInstruction }]
+              }
+            })
           });
 
-          if (response.text) {
-            setGeneratedRemarks(response.text.trim());
+          if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            const apiErrMessage = errData?.error?.message || `HTTP error! status: ${response.status}`;
+            throw new Error(apiErrMessage);
+          }
+
+          const resData = await response.json();
+          const generatedText = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+          if (generatedText) {
+            setGeneratedRemarks(generatedText.trim());
             logs[currentStepIndex] = { step: `Model ${modelName} hoàn thành`, status: 'success' };
             setAiLogs([...logs]);
             success = true;
