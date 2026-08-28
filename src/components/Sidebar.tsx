@@ -71,21 +71,27 @@ export const Sidebar: React.FC = () => {
             </span>
           </div>
 
-          <div className="relative">
-            <select
-              id="select-active-class"
-              value={activeClassId}
-              onChange={e => setActiveClassId(e.target.value)}
-              className="w-full bg-white border border-slate-200 text-slate-800 font-bold text-sm rounded-xl px-3 py-2 pr-8 appearance-none shadow-2xs focus:ring-2 focus:ring-emerald-500 cursor-pointer"
-            >
-              {classes.map(c => (
-                <option key={c.id} value={c.id}>
-                  {c.name} ({c.code})
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          </div>
+          {classes.length > 1 ? (
+            <div className="relative">
+              <select
+                id="select-active-class"
+                value={activeClassId}
+                onChange={e => setActiveClassId(e.target.value)}
+                className="w-full bg-white border border-slate-200 text-slate-800 font-bold text-sm rounded-xl px-3 py-2 pr-8 appearance-none shadow-2xs focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+              >
+                {classes.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({c.code})
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+          ) : (
+            <div className="w-full bg-white border border-slate-200 text-slate-800 font-bold text-sm rounded-xl px-3.5 py-2 shadow-2xs text-center">
+              {activeClass.name} ({activeClass.code})
+            </div>
+          )}
 
           <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500 pt-2 border-t border-slate-200/50">
             <div className="flex items-center gap-1.5 min-w-0">
