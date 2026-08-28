@@ -1,0 +1,6 @@
+{
+  "name": "Lớp Học Vui Vẻ",
+  "description": "Ứng dụng quản lý lớp học EdTech thông minh với điểm danh, sơ đồ lớp tương tác, hệ thống đổi quà & thời khóa biểu",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
