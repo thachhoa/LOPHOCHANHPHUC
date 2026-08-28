@@ -8,7 +8,6 @@ import {
   TextRun,
   AlignmentType,
   HeadingLevel,
-  TableWidthUnit,
   WidthType,
   BorderStyle,
 } from 'docx';
@@ -246,7 +245,7 @@ export const exportAttendanceReportDocx = async (
           new Table({
             width: {
               size: 100,
-              type: TableWidthUnit.PERCENTAGE,
+              type: WidthType.PERCENTAGE,
             },
             rows: tableRows,
           }),
@@ -459,7 +458,7 @@ export const exportStudentHappinessReportDocx = async (
           new Table({
             width: {
               size: 100,
-              type: TableWidthUnit.PERCENTAGE,
+              type: WidthType.PERCENTAGE,
             },
             rows: tableRows,
           }),
