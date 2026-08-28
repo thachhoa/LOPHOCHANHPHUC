@@ -30,6 +30,8 @@ export interface Classroom {
   rows: number; // Number of desk rows
   cols: number; // Number of desk columns (or seats per row)
   themeColor: string;
+  avatar?: string;
+  teacherAvatar?: string;
 }
 
 export interface AttendanceDay {
