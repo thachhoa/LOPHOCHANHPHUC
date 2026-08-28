@@ -13,18 +13,6 @@ export const INITIAL_CLASSES: Classroom[] = [
     cols: 6,
     themeColor: 'emerald',
   },
-  {
-    id: 'class-4b',
-    name: 'Lớp 4B - Khám Phá',
-    code: '4B-2025',
-    grade: 4,
-    academicYear: '2025 - 2026',
-    teacherName: 'Thầy Nguyễn Văn Nam',
-    roomName: 'Phòng 301 (Tầng 3)',
-    rows: 4,
-    cols: 6,
-    themeColor: 'blue',
-  },
 ];
 
 const AVATARS_MALE = [
