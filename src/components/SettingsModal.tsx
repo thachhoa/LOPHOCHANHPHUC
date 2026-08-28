@@ -66,22 +66,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-      <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-md w-full p-6 relative overflow-hidden">
+      <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-md w-full max-h-[90vh] flex flex-col relative overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+        <div className="flex items-center justify-between p-6 pb-4 border-b border-slate-100 shrink-0">
           <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">
             <Settings className="w-5 h-5 text-slate-600" />
             Cài Đặt Hệ Thống
           </h3>
           <button
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-50"
+            className="p-1.5 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-50 cursor-pointer shadow-3xs"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="mt-4 space-y-6">
+        {/* Scrollable Body Content */}
+        <div className="flex-1 overflow-y-auto p-6 pt-4 space-y-6">
           {/* Section 1: Sao lưu & Khôi phục */}
           <div className="space-y-3">
             <h4 className="font-bold text-slate-700 text-xs uppercase tracking-wider">
@@ -223,8 +224,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         </div>
 
         {/* Footer Info */}
-        <div className="mt-6 pt-4 border-t border-slate-100 text-[10px] text-slate-400 text-center">
-          Ứng dụng Lớp Học Hạnh Phúc v2.5. Hỗ trợ sư phạm thời đại số.
+        <div className="p-6 pt-0 border-t border-slate-100 text-[10px] text-slate-400 text-center shrink-0">
+          <div className="pt-4">
+            Ứng dụng Lớp Học Hạnh Phúc v2.5. Hỗ trợ sư phạm thời đại số.
+          </div>
         </div>
       </div>
     </div>
