@@ -42,6 +42,7 @@ interface ClassroomContextType {
   updateStudent: (std: Student) => void;
   deleteStudent: (studentId: string) => void;
   updateStudentAvatar: (studentId: string, avatarUrl: string) => void;
+  importStudentsBulk: (newStds: Omit<Student, 'id' | 'stars' | 'badges' | 'seatRow' | 'seatCol'>[]) => void;
 
   // Attendance
   attendanceRecords: AttendanceDay[];
@@ -450,6 +451,27 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setStudents(prev => [...prev, newStudent]);
   };
 
+  const importStudentsBulk = (newStdsData: Omit<Student, 'id' | 'stars' | 'badges' | 'seatRow' | 'seatCol'>[]) => {
+    setStudents(prev => {
+      const currentClassStudents = prev.filter(s => s.classId === activeClassId);
+      const currentCount = currentClassStudents.length;
+      
+      const newStudents: Student[] = newStdsData.map((std, idx) => {
+        const nextRow = Math.floor((currentCount + idx) / activeClass.cols);
+        const nextCol = (currentCount + idx) % activeClass.cols;
+        return {
+          ...std,
+          id: `std-${Date.now()}-${idx}`,
+          stars: 10,
+          badges: ['Học sinh mới'],
+          seatRow: nextRow < activeClass.rows ? nextRow : 0,
+          seatCol: nextCol < activeClass.cols ? nextCol : 0,
+        };
+      });
+      return [...prev, ...newStudents];
+    });
+  };
+
   const updateStudent = (std: Student) => {
     setStudents(prev => prev.map(s => (s.id === std.id ? std : s)));
     if (selectedStudent?.id === std.id) {
@@ -748,6 +770,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         importBackupData,
         activeModel,
         setActiveModel,
+        importStudentsBulk,
       }}
     >
       {children}
