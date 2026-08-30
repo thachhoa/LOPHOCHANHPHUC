@@ -32,6 +32,8 @@ export interface Classroom {
   themeColor: string;
   avatar?: string;
   teacherAvatar?: string;
+  timetableFile?: string;
+  timetableFileType?: 'image' | 'pdf';
 }
 
 export interface AttendanceDay {
@@ -53,6 +55,7 @@ export interface RewardItem {
   description: string;
   image?: string;
   color: string;
+  classIds?: string[];
 }
 
 export interface RewardRedemption {
