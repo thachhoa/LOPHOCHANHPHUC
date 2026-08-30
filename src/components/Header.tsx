@@ -11,6 +11,10 @@ import {
   Layers,
   Settings,
   Brain,
+  Download,
+  Upload,
+  FileText,
+  CheckCircle,
 } from 'lucide-react';
 import { useClassroom } from '../context/ClassroomContext';
 import { Classroom } from '../types';
@@ -33,10 +37,18 @@ export const Header: React.FC = () => {
     isAIAssistantOpen,
     setIsAIAssistantOpen,
     aiApiKey,
+    importStudentsBulk,
   } = useClassroom();
 
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
   const [isAddClassOpen, setIsAddClassOpen] = useState(false);
+
+  // File upload states
+  const [addStudentMode, setAddStudentMode] = useState<'manual' | 'file'>('manual');
+  const [importFileName, setImportFileName] = useState('');
+  const [parsedStudentsCount, setParsedStudentsCount] = useState(0);
+  const [parsedStudentsList, setParsedStudentsList] = useState<any[]>([]);
+  const [importError, setImportError] = useState('');
 
   // Quick add student form state
   const [newStudentName, setNewStudentName] = useState('');
@@ -59,6 +71,102 @@ export const Header: React.FC = () => {
       return () => clearTimeout(timer);
     }
   }, [setIsSettingsOpen]);
+
+  const handleDownloadTemplate = () => {
+    const headers = 'Ma hoc sinh,Ho ten,Gio tinh (Nam/Nu),Ngay sinh (YYYY-MM-DD),Ho ten Phu huynh,SDT lien he,So thich,Uoc mo\n';
+    const sample = 'HS-001,Nguyen Minh Anh,Nu,2016-04-12,Nguyen Van Hung,0912345678,Doc sach,Bac si\nHS-002,Tran Bảo Long,Nam,2016-08-20,Tran Dinh Trong,0987654321,Co vua,Ky su';
+    const csvContent = '\uFEFF' + headers + sample;
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'Mau_Danh_Sach_Hoc_Sinh.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setImportFileName(file.name);
+    setImportError('');
+    setParsedStudentsList([]);
+    setParsedStudentsCount(0);
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const text = event.target?.result as string;
+        const lines = text.split(/\r?\n/);
+        const list: any[] = [];
+        
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+          
+          const columns = line.split(',').map(col => col.replace(/^["']|["']$/g, '').trim());
+          if (columns.length < 2 || !columns[1]) continue;
+          
+          list.push({
+            classId: activeClass.id,
+            studentCode: columns[0] || `HS-${Date.now()}-${i}`,
+            name: columns[1],
+            gender: columns[2]?.toLowerCase() === 'nữ' || columns[2]?.toLowerCase() === 'nu' || columns[2]?.toLowerCase() === 'female' ? 'female' : 'male',
+            birthday: columns[3] || '2016-01-01',
+            avatar: '',
+            parentName: columns[4] || '',
+            parentPhone: columns[5] || '',
+            hobby: columns[6] || '',
+            dream: columns[7] || '',
+          });
+        }
+
+        if (list.length === 0) {
+          setImportError('Không tìm thấy học sinh hợp lệ trong file!');
+        } else {
+          setParsedStudentsList(list);
+          setParsedStudentsCount(list.length);
+        }
+      } catch (err: any) {
+        setImportError('Lỗi đọc file: ' + err.message);
+      }
+    };
+    reader.readAsText(file, 'UTF-8');
+  };
+
+  const handleImportSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (parsedStudentsList.length === 0) return;
+    
+    const AVATARS_MALE = [
+      'https://images.unsplash.com/photo-1544717305-2782549b5136?w=200&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1595454223600-91fbdd77e584?w=200&auto=format&fit=crop&q=80',
+    ];
+    const AVATARS_FEMALE = [
+      'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80',
+    ];
+    
+    const finalizedList = parsedStudentsList.map((std, idx) => {
+      const avatarUrl = std.gender === 'female' 
+        ? AVATARS_FEMALE[idx % AVATARS_FEMALE.length] 
+        : AVATARS_MALE[idx % AVATARS_MALE.length];
+      return {
+        ...std,
+        avatar: avatarUrl,
+      };
+    });
+    
+    importStudentsBulk(finalizedList);
+    setIsAddStudentOpen(false);
+    
+    setAddStudentMode('manual');
+    setImportFileName('');
+    setParsedStudentsList([]);
+    setParsedStudentsCount(0);
+  };
 
   const handleCreateStudent = (e: React.FormEvent) => {
     e.preventDefault();
@@ -226,88 +334,187 @@ export const Header: React.FC = () => {
               </button>
             </div>
 
-            <form onSubmit={handleCreateStudent} className="mt-4 space-y-3.5">
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Họ và tên học sinh *</label>
-                <input
-                  id="input-new-student-name"
-                  type="text"
-                  required
-                  placeholder="Ví dụ: Nguyễn Hoàng Long"
-                  value={newStudentName}
-                  onChange={e => setNewStudentName(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
+            {/* Tab Selector */}
+            <div className="flex border-b border-slate-100 mt-2 mb-4">
+              <button
+                type="button"
+                onClick={() => setAddStudentMode('manual')}
+                className={`flex-1 pb-2 text-xs font-bold text-center border-b-2 transition-all ${
+                  addStudentMode === 'manual'
+                    ? 'border-emerald-600 text-emerald-600'
+                    : 'border-transparent text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                Thêm thủ công
+              </button>
+              <button
+                type="button"
+                onClick={() => setAddStudentMode('file')}
+                className={`flex-1 pb-2 text-xs font-bold text-center border-b-2 transition-all ${
+                  addStudentMode === 'file'
+                    ? 'border-emerald-600 text-emerald-600'
+                    : 'border-transparent text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                Nhập từ file (CSV/Excel)
+              </button>
+            </div>
 
-              <div className="grid grid-cols-2 gap-3">
+            {addStudentMode === 'manual' ? (
+              <form onSubmit={handleCreateStudent} className="space-y-3.5">
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Giới tính</label>
-                  <select
-                    id="input-new-student-gender"
-                    value={newStudentGender}
-                    onChange={e => setNewStudentGender(e.target.value as 'male' | 'female')}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500"
-                  >
-                    <option value="male">Nam</option>
-                    <option value="female">Nữ</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Ngày sinh</label>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Họ và tên học sinh *</label>
                   <input
-                    id="input-new-student-birthday"
-                    type="date"
-                    value={newStudentBirthday}
-                    onChange={e => setNewStudentBirthday(e.target.value)}
+                    id="input-new-student-name"
+                    type="text"
+                    required
+                    placeholder="Ví dụ: Nguyễn Hoàng Long"
+                    value={newStudentName}
+                    onChange={e => setNewStudentName(e.target.value)}
                     className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500"
-                  >
-                  </input>
+                  />
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Họ tên Phụ huynh</label>
-                <input
-                  id="input-new-student-parent"
-                  type="text"
-                  placeholder="Ví dụ: Nguyễn Văn Hưng"
-                  value={newStudentParent}
-                  onChange={e => setNewStudentParent(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Giới tính</label>
+                    <select
+                      id="input-new-student-gender"
+                      value={newStudentGender}
+                      onChange={e => setNewStudentGender(e.target.value as 'male' | 'female')}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500"
+                    >
+                      <option value="male">Nam</option>
+                      <option value="female">Nữ</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Ngày sinh</label>
+                    <input
+                      id="input-new-student-birthday"
+                      type="date"
+                      value={newStudentBirthday}
+                      onChange={e => setNewStudentBirthday(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                </div>
 
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Số điện thoại liên hệ</label>
-                <input
-                  id="input-new-student-phone"
-                  type="text"
-                  placeholder="Ví dụ: 0912 345 678"
-                  value={newStudentPhone}
-                  onChange={e => setNewStudentPhone(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Họ tên Phụ huynh</label>
+                  <input
+                    id="input-new-student-parent"
+                    type="text"
+                    placeholder="Ví dụ: Nguyễn Văn Hưng"
+                    value={newStudentParent}
+                    onChange={e => setNewStudentParent(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
 
-              <div className="pt-3 flex justify-end gap-2 border-t border-slate-100">
-                <button
-                  type="button"
-                  id="btn-cancel-add-student"
-                  onClick={() => setIsAddStudentOpen(false)}
-                  className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl"
-                >
-                  Huỷ
-                </button>
-                <button
-                  type="submit"
-                  id="btn-submit-add-student"
-                  className="px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs"
-                >
-                  Thêm vào lớp
-                </button>
-              </div>
-            </form>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Số điện thoại liên hệ</label>
+                  <input
+                    id="input-new-student-phone"
+                    type="text"
+                    placeholder="Ví dụ: 0912 345 678"
+                    value={newStudentPhone}
+                    onChange={e => setNewStudentPhone(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                <div className="pt-3 flex justify-end gap-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    id="btn-cancel-add-student"
+                    onClick={() => setIsAddStudentOpen(false)}
+                    className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl font-bold cursor-pointer"
+                  >
+                    Huỷ
+                  </button>
+                  <button
+                    type="submit"
+                    id="btn-submit-add-student"
+                    className="px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs cursor-pointer"
+                  >
+                    Thêm vào lớp
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleImportSubmit} className="space-y-4">
+                {/* Instructions and Download Template Link */}
+                <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/60 space-y-2">
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    Tải danh sách học sinh cả lớp nhanh chóng bằng tệp CSV. Hãy điền danh sách theo tệp mẫu bên dưới để đảm bảo cấu trúc dữ liệu chính xác.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleDownloadTemplate}
+                    className="px-3 py-1.5 bg-white border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/20 text-slate-700 hover:text-emerald-800 rounded-lg text-[10px] font-bold shadow-3xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5 text-emerald-600" />
+                    Tải tệp mẫu (.csv)
+                  </button>
+                </div>
+
+                {/* Upload Input Area */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Chọn tệp danh sách học sinh</label>
+                  <div className="flex items-center gap-2">
+                    <label className="flex-1 flex items-center justify-between px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-600 cursor-pointer hover:border-slate-400">
+                      <span className="truncate">{importFileName || 'Chưa chọn tệp...'}</span>
+                      <Upload className="w-4 h-4 text-slate-400 shrink-0 ml-2" />
+                      <input
+                        type="file"
+                        accept=".csv"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                  {importError && (
+                    <p className="text-[10px] text-rose-600 font-medium leading-relaxed">{importError}</p>
+                  )}
+                </div>
+
+                {/* Preview Status */}
+                {parsedStudentsCount > 0 && (
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-[11px] text-emerald-800 flex items-start gap-2">
+                    <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <div className="space-y-0.5">
+                      <p className="font-bold">Đọc dữ liệu thành công!</p>
+                      <p>Tìm thấy **{parsedStudentsCount} học sinh** sẵn sàng nhập lớp.</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="pt-3 flex justify-end gap-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAddStudentOpen(false);
+                      setAddStudentMode('manual');
+                      setImportFileName('');
+                      setParsedStudentsList([]);
+                      setParsedStudentsCount(0);
+                    }}
+                    className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl font-bold cursor-pointer"
+                  >
+                    Huỷ
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={parsedStudentsCount === 0}
+                    className="px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs disabled:opacity-50 cursor-pointer"
+                  >
+                    Nhập danh sách ({parsedStudentsCount} HS)
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}
