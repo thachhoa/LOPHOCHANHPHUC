@@ -280,22 +280,17 @@ export const SeatingChartView: React.FC = () => {
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2">
             <span className="text-xs text-slate-500 font-bold">Số tổ:</span>
-            <div className="flex bg-slate-100 p-1 rounded-lg">
-              {[3, 4].map(num => (
-                <button
-                  key={num}
-                  type="button"
-                  onClick={() => handleGroupsCountChange(num)}
-                  className={`px-3.5 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${
-                    cols / 2 === num
-                      ? 'bg-blue-600 text-white shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-800'
-                  }`}
-                >
-                  {num} tổ
-                </button>
+            <select
+              value={cols / 2}
+              onChange={(e) => handleGroupsCountChange(Number(e.target.value))}
+              className="bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-800 px-2 py-1 focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            >
+              {Array.from({ length: 8 }).map((_, i) => (
+                <option key={i + 1} value={i + 1}>
+                  {i + 1} tổ
+                </option>
               ))}
-            </div>
+            </select>
           </div>
 
           <div className="flex items-center gap-2">
