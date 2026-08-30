@@ -291,19 +291,25 @@ export const exportSeatingPptx = async (activeClass: Classroom, students: Studen
   // PowerPoint width 13.33 inches, height 7.5 inches
   const rowsCount = activeClass.rows || 4;
   const colsCount = activeClass.cols || 6;
+  const numGroups = colsCount / 2;
 
   const startX = 0.8;
   const startY = 2.0;
   const availableW = 11.7;
   const availableH = 4.8;
 
-  const deskW = availableW / colsCount - 0.2;
+  const colGap = 0.08; // Khoảng cách giữa 2 chỗ ngồi trong cùng 1 bàn
+  const groupGap = 0.55; // Khoảng cách lối đi giữa các Tổ
+  
+  const deskW = (availableW - (colsCount - numGroups) * colGap - (numGroups - 1) * groupGap) / colsCount;
   const deskH = availableH / rowsCount - 0.2;
 
   for (let r = 0; r < rowsCount; r++) {
     for (let c = 0; c < colsCount; c++) {
       const student = students.find((s) => s.seatRow === r && s.seatCol === c);
-      const xPos = startX + c * (deskW + 0.2);
+      
+      const groupIdx = Math.floor(c / 2);
+      const xPos = startX + groupIdx * (2 * deskW + colGap + groupGap) + (c % 2) * (deskW + colGap);
       const yPos = startY + r * (deskH + 0.2);
 
       if (student) {
