@@ -81,7 +81,7 @@ export const Sidebar: React.FC = () => {
               >
                 {classes.map(c => (
                   <option key={c.id} value={c.id}>
-                    {c.name} ({c.code})
+                    {c.name} {c.code ? `(${c.code})` : ''}
                   </option>
                 ))}
               </select>
@@ -89,7 +89,7 @@ export const Sidebar: React.FC = () => {
             </div>
           ) : (
             <div className="w-full bg-white border border-slate-200 text-slate-800 font-bold text-sm rounded-xl px-3.5 py-2 shadow-2xs text-center">
-              {activeClass.name} ({activeClass.code})
+              {activeClass.name} {activeClass.code ? `(${activeClass.code})` : ''}
             </div>
           )}
 
