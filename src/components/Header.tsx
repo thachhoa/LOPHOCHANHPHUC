@@ -225,9 +225,11 @@ export const Header: React.FC = () => {
         <div>
           <div className="flex items-center gap-2">
             <h2 className="font-bold text-slate-800 text-lg">{activeClass.name}</h2>
-            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-md border border-emerald-100">
-              Mã: {activeClass.code}
-            </span>
+            {activeClass.code && (
+              <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-md border border-emerald-100">
+                Mã: {activeClass.code}
+              </span>
+            )}
           </div>
           <p className="text-xs text-slate-500">
             {activeClass.roomName} • GVCN: <span className="font-medium text-slate-700">{activeClass.teacherName}</span>
