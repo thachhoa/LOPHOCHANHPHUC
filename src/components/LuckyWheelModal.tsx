@@ -37,8 +37,6 @@ export const LuckyWheelModal: React.FC = () => {
   const [activeEffect, setActiveEffect] = useState<'spin' | 'bounce' | 'zoom' | 'orbit' | 'rain' | 'pulse' | 'wave'>('spin');
   const [settingTab, setSettingTab] = useState<'effect' | 'manual' | 'favorite'>('effect');
 
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
   useEffect(() => {
     if (isLuckyWheelOpen) {
       setSelectedCandidates(currentStudents.map(s => s.id));
@@ -47,74 +45,6 @@ export const LuckyWheelModal: React.FC = () => {
   }, [isLuckyWheelOpen, currentStudents]);
 
   const candidatesList = currentStudents.filter(s => selectedCandidates.includes(s.id));
-
-  // Draw the lucky wheel on Canvas (Minimalist design: no colors, no text names, only clean rotation guide)
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const width = canvas.width;
-    const height = canvas.height;
-    const centerX = width / 2;
-    const centerY = height / 2;
-    const radius = Math.min(centerX, centerY) - 15;
-
-    ctx.clearRect(0, 0, width, height);
-
-    if (candidatesList.length === 0) {
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = '14px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('Chọn ít nhất 1 học sinh', centerX, centerY);
-      return;
-    }
-
-    // 1. Draw outer circle border
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-    ctx.fillStyle = '#f8fafc';
-    ctx.fill();
-    ctx.strokeStyle = '#cbd5e1';
-    ctx.lineWidth = 6;
-    ctx.stroke();
-
-    // 2. Draw modern decorative fan-like sectors (very light pastel colors for rotation vibe)
-    const numFans = 8;
-    const fanAngle = (Math.PI * 2) / numFans;
-    for (let i = 0; i < numFans; i++) {
-      if (i % 2 === 0) {
-        ctx.beginPath();
-        ctx.moveTo(centerX, centerY);
-        ctx.arc(centerX, centerY, radius - 3, i * fanAngle, (i + 1) * fanAngle);
-        ctx.closePath();
-        ctx.fillStyle = 'rgba(124, 58, 237, 0.05)'; // Very light lavender
-        ctx.fill();
-      }
-    }
-
-    // 3. Draw middle circle guideline
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radius - 20, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(99, 102, 241, 0.12)';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    // 4. Center circle pin (small axle)
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, 32, 0, Math.PI * 2);
-    ctx.fillStyle = '#ffffff';
-    ctx.fill();
-    ctx.strokeStyle = '#f1f5f9';
-    ctx.lineWidth = 3;
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, 15, 0, Math.PI * 2);
-    ctx.fillStyle = '#6366f1';
-    ctx.fill();
-  }, [candidatesList]);
 
   if (!isLuckyWheelOpen) return null;
 
@@ -246,7 +176,7 @@ export const LuckyWheelModal: React.FC = () => {
               {/* Mũi tên chỉ vị trí */}
               <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20 w-0 h-0 border-l-[14px] border-l-transparent border-r-[14px] border-r-transparent border-t-[22px] border-t-amber-500 drop-shadow-md" />
 
-              {/* Container quay của Vòng quay */}
+              {/* Container quay của các Avatar học sinh (Không nền, chỉ nét đứt dẫn hướng mảnh) */}
               <div
                 style={{
                   transform: `rotate(${spinAngle}deg)`,
@@ -260,34 +190,41 @@ export const LuckyWheelModal: React.FC = () => {
                     activeEffect === 'wave' ? 'wheelWave 0.5s infinite ease-in-out' : 'none'
                   ) : 'none',
                 }}
-                className="w-80 h-80 rounded-full shadow-2xl flex items-center justify-center relative bg-white border border-slate-100"
+                className="w-80 h-80 rounded-full flex items-center justify-center relative border-2 border-dashed border-purple-200/50 bg-transparent"
               >
-                <canvas ref={canvasRef} width={320} height={320} className="rounded-full" />
-
-                {/* Avatar học sinh chạy dọc chu vi viền ngoài vòng quay */}
+                {/* Ảnh đại diện học sinh lơ lửng chạy dọc chu vi, bù trừ góc xoay động để luôn thẳng đứng */}
                 {candidatesList.map((std, i) => {
                   const angle = (i * 360) / candidatesList.length;
-                  const radius = 130; // Khoảng cách từ tâm
+                  const radius = 120; // Bán kính quỹ đạo
                   const rad = (angle * Math.PI) / 180;
-                  const x = 160 + radius * Math.cos(rad) - 18; // Offset nửa chiều rộng avatar (36px)
-                  const y = 160 + radius * Math.sin(rad) - 18;
+                  const x = 160 + radius * Math.cos(rad) - 24; // offset cho container w-12 (48px)
+                  const y = 160 + radius * Math.sin(rad) - 24;
                   
+                  // Chỉ hiển thị tên riêng ngắn gọn cho dễ nhìn
+                  const shortName = std.name.trim().split(' ').pop() || std.name;
+
                   return (
                     <div
                       key={std.id}
                       title={std.name}
-                      className="absolute w-9 h-9 rounded-full border-2 border-white shadow-xs overflow-hidden bg-white shrink-0 flex items-center justify-center pointer-events-none z-10"
+                      className="absolute w-12 flex flex-col items-center z-10 select-none cursor-pointer"
                       style={{
                         left: `${x}px`,
                         top: `${y}px`,
-                        transform: `rotate(${angle + 90}deg)`,
+                        transform: `rotate(${-spinAngle}deg)`, // Bù trừ góc xoay động của cha
+                        transition: isSpinning ? 'transform 3.8s cubic-bezier(0.15, 0.9, 0.2, 1)' : 'none',
                       }}
                     >
-                      {std.avatar ? (
-                        <img src={std.avatar} alt={std.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                      ) : (
-                        <span className="text-[10px] font-bold text-slate-500 uppercase">{std.name.substring(0, 2)}</span>
-                      )}
+                      <div className="w-10 h-10 rounded-full border-2 border-white shadow-md overflow-hidden bg-slate-100 shrink-0 hover:scale-110 transition-transform">
+                        {std.avatar ? (
+                          <img src={std.avatar} alt={std.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                        ) : (
+                          <span className="text-[10px] font-bold text-slate-500 uppercase">{std.name.substring(0, 2)}</span>
+                        )}
+                      </div>
+                      <span className="text-[8px] font-black text-slate-700 bg-white/95 border border-slate-200/60 px-1 py-0.2 rounded-md shadow-3xs max-w-full truncate block mt-0.5 leading-tight">
+                        {shortName}
+                      </span>
                     </div>
                   );
                 })}
