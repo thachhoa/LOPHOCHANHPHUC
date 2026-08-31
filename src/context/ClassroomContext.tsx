@@ -652,7 +652,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     return {
       success: true,
-      message: `Đổi thành công "${reward.name}" cho em ${student.name}!`,
+      message: `Đổi thành công "${reward.name}" cho em ${student.name}! Số sao còn lại của học sinh: ${student.stars - reward.cost} sao.`,
     };
   };
 
