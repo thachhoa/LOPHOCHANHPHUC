@@ -70,6 +70,30 @@ export const LuckyWheelModal: React.FC = () => {
     return { x, y };
   };
 
+  // Xác định animation cụ thể cho từng avatar dựa theo activeEffect
+  const getAvatarAnimation = (index: number) => {
+    if (!isSpinning) return 'none';
+    if (activeEffect === 'spin') return 'none'; // Spin dùng transform rotate của cha & con
+
+    const animIndex = (index % 4) + 1; // 1, 2, 3, 4
+    switch (activeEffect) {
+      case 'bounce':
+        return `avatarBounce${animIndex} 0.5s infinite ease-in-out`;
+      case 'zoom':
+        return `avatarZoom${animIndex} 0.6s infinite ease-in-out`;
+      case 'orbit':
+        return `avatarOrbit${animIndex} 1.2s infinite ease-in-out`;
+      case 'rain':
+        return `avatarRain${animIndex} 0.8s infinite ease-in-out`;
+      case 'pulse':
+        return `avatarPulse 0.4s infinite ease-in-out`;
+      case 'wave':
+        return `avatarWave${animIndex} 0.7s infinite ease-in-out`;
+      default:
+        return 'none';
+    }
+  };
+
   if (!isLuckyWheelOpen) return null;
 
   const startSpin = () => {
@@ -167,29 +191,108 @@ export const LuckyWheelModal: React.FC = () => {
             0%, 100% { transform: skewX(0deg) skewY(0deg); }
             50% { transform: skewX(2.5deg) skewY(1.5deg); }
           }
-          @keyframes floatScatter1 {
-            0%, 100% { transform: translate(0px, 0px) scale(1); }
-            25% { transform: translate(30px, -45px) scale(1.1); }
-            50% { transform: translate(-35px, 25px) scale(0.95); }
-            75% { transform: translate(40px, 35px) scale(1.05); }
+          /* 1. Xoáy tròn (Spin): Tự xoay nhẹ cho sống động */
+          @keyframes avatarSpin {
+            0%, 100% { transform: rotate(0deg) scale(1); }
+            50% { transform: rotate(3deg) scale(1.05); }
           }
-          @keyframes floatScatter2 {
-            0%, 100% { transform: translate(0px, 0px) scale(1); }
-            25% { transform: translate(-45px, 30px) scale(0.95); }
-            50% { transform: translate(25px, -35px) scale(1.1); }
-            75% { transform: translate(-30px, -45px) scale(1.02); }
+          /* 2. Tung nảy (Bounce): Nảy theo trục dọc lệch nhịp */
+          @keyframes avatarBounce1 {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-28px); }
           }
-          @keyframes floatScatter3 {
-            0%, 100% { transform: translate(0px, 0px) scale(1); }
-            25% { transform: translate(35px, 35px) scale(1.05); }
-            50% { transform: translate(-30px, -30px) scale(0.95); }
-            75% { transform: translate(-45px, 25px) scale(1.08); }
+          @keyframes avatarBounce2 {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-18px); }
           }
-          @keyframes floatScatter4 {
-            0%, 100% { transform: translate(0px, 0px) scale(1); }
-            25% { transform: translate(-25px, -45px) scale(0.95); }
-            50% { transform: translate(40px, 30px) scale(1.05); }
-            75% { transform: translate(30px, -30px) scale(1.02); }
+          @keyframes avatarBounce3 {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(22px); }
+          }
+          @keyframes avatarBounce4 {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(14px); }
+          }
+          /* 3. Hút vào tâm (Zoom): Co dãn scale to nhỏ lệch nhịp */
+          @keyframes avatarZoom1 {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.22); }
+          }
+          @keyframes avatarZoom2 {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(0.78); }
+          }
+          @keyframes avatarZoom3 {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+          }
+          @keyframes avatarZoom4 {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(0.85); }
+          }
+          /* 4. Bay theo quỹ đạo (Orbit): Di chuyển elip đan chéo */
+          @keyframes avatarOrbit1 {
+            0%, 100% { transform: translate(0px, 0px); }
+            25% { transform: translate(32px, -45px); }
+            50% { transform: translate(-35px, 25px); }
+            75% { transform: translate(35px, 35px); }
+          }
+          @keyframes avatarOrbit2 {
+            0%, 100% { transform: translate(0px, 0px); }
+            25% { transform: translate(-45px, 30px); }
+            50% { transform: translate(25px, -35px); }
+            75% { transform: translate(-30px, -45px); }
+          }
+          @keyframes avatarOrbit3 {
+            0%, 100% { transform: translate(0px, 0px); }
+            25% { transform: translate(35px, 35px); }
+            50% { transform: translate(-30px, -30px); }
+            75% { transform: translate(-45px, 25px); }
+          }
+          @keyframes avatarOrbit4 {
+            0%, 100% { transform: translate(0px, 0px); }
+            25% { transform: translate(-25px, -45px); }
+            50% { transform: translate(40px, 30px); }
+            75% { transform: translate(30px, -30px); }
+          }
+          /* 5. Mưa bóng (Rain): Rơi rơi dồn dập */
+          @keyframes avatarRain1 {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(35px); }
+          }
+          @keyframes avatarRain2 {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-35px); }
+          }
+          @keyframes avatarRain3 {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(22px); }
+          }
+          @keyframes avatarRain4 {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-22px); }
+          }
+          /* 6. Sân khấu ánh sáng (Pulse): Nhấp nháy và phát sáng viền */
+          @keyframes avatarPulse {
+            0%, 100% { transform: scale(1); filter: brightness(1) drop-shadow(0 0 2px rgba(139, 92, 246, 0.4)); }
+            50% { transform: scale(1.15); filter: brightness(1.3) drop-shadow(0 0 12px rgba(139, 92, 246, 0.8)); }
+          }
+          /* 7. Sóng bồng bềnh (Wave): Nghiêng lắc uốn lượn */
+          @keyframes avatarWave1 {
+            0%, 100% { transform: skewX(0deg) translate(0px, 0px); }
+            50% { transform: skewX(6deg) translate(10px, -10px); }
+          }
+          @keyframes avatarWave2 {
+            0%, 100% { transform: skewX(0deg) translate(0px, 0px); }
+            50% { transform: skewX(-6deg) translate(-10px, 10px); }
+          }
+          @keyframes avatarWave3 {
+            0%, 100% { transform: skewX(0deg) translate(0px, 0px); }
+            50% { transform: skewX(4deg) translate(-8px, -8px); }
+          }
+          @keyframes avatarWave4 {
+            0%, 100% { transform: skewX(0deg) translate(0px, 0px); }
+            50% { transform: skewX(-4deg) translate(8px, 8px); }
           }
         `}</style>
 
@@ -224,7 +327,16 @@ export const LuckyWheelModal: React.FC = () => {
               {/* Container quay của các Avatar học sinh lơ lửng tự do */}
               <div
                 style={{
-                  animation: isSpinning ? 'wheelWave 1.4s infinite ease-in-out' : 'none',
+                  transform: activeEffect === 'spin' ? `rotate(${spinAngle}deg)` : 'none',
+                  transition: activeEffect === 'spin' && isSpinning ? 'transform 3.8s cubic-bezier(0.15, 0.9, 0.2, 1)' : 'none',
+                  animation: isSpinning && activeEffect !== 'spin' ? (
+                    activeEffect === 'bounce' ? 'wheelBounce 0.4s infinite ease-in-out' :
+                    activeEffect === 'zoom' ? 'wheelZoom 0.5s infinite ease-in-out' :
+                    activeEffect === 'orbit' ? 'wheelOrbit 0.6s infinite linear' :
+                    activeEffect === 'rain' ? 'wheelRain 0.4s infinite ease-in-out' :
+                    activeEffect === 'pulse' ? 'wheelPulse 0.5s infinite ease-in-out' :
+                    activeEffect === 'wave' ? 'wheelWave 0.5s infinite ease-in-out' : 'none'
+                  ) : 'none',
                 }}
                 className="w-full max-w-[350px] h-full max-h-[350px] aspect-square rounded-full flex items-center justify-center relative bg-transparent"
               >
@@ -239,10 +351,6 @@ export const LuckyWheelModal: React.FC = () => {
                   const borderColors = ['border-blue-400', 'border-amber-400', 'border-purple-400', 'border-emerald-400', 'border-pink-400'];
                   const borderColor = borderColors[i % borderColors.length];
 
-                  // Hiệu ứng bay đan chéo ngẫu nhiên khi quay
-                  const anims = ['floatScatter1', 'floatScatter2', 'floatScatter3', 'floatScatter4'];
-                  const scatterAnim = anims[i % anims.length];
-
                   return (
                     <div
                       key={std.id}
@@ -251,8 +359,9 @@ export const LuckyWheelModal: React.FC = () => {
                       style={{
                         left: `${x}px`,
                         top: `${y}px`,
-                        animation: isSpinning ? `${scatterAnim} 1.3s infinite ease-in-out` : 'none',
-                        transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)', // chuyển đổi mượt khi thay đổi candidate
+                        transform: activeEffect === 'spin' ? `rotate(${-spinAngle}deg)` : 'none', // Bù góc quay spin của cha
+                        animation: activeEffect === 'spin' ? 'none' : getAvatarAnimation(i), // Áp dụng hiệu ứng riêng cho các chuyển động khác
+                        transition: activeEffect === 'spin' && isSpinning ? 'transform 3.8s cubic-bezier(0.15, 0.9, 0.2, 1)' : 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
                       }}
                     >
                       {/* Avatar to hơn hẳn (w-13 h-13) */}
