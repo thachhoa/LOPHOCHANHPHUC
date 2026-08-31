@@ -30,12 +30,14 @@ export const RewardStoreView: React.FC = () => {
     deleteRewardItem,
     activeClass,
     setSelectedStudent,
+    classes,
   } = useClassroom();
 
   const [activeTab, setActiveTab] = useState<'store' | 'history' | 'transactions'>('store');
   const [selectedRewardToRedeem, setSelectedRewardToRedeem] = useState<RewardItem | null>(null);
   const [selectedStudentForRedeem, setSelectedStudentForRedeem] = useState<string>('');
   const [redeemFeedback, setRedeemFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [studentSearchQuery, setStudentSearchQuery] = useState('');
 
   // Add / Edit Reward Item Form Modal
   const [isRewardFormOpen, setIsRewardFormOpen] = useState(false);
@@ -48,6 +50,7 @@ export const RewardStoreView: React.FC = () => {
     description: string;
     color: string;
     icon: string;
+    classIds: string[];
   }>({
     name: '',
     cost: 15,
@@ -56,6 +59,7 @@ export const RewardStoreView: React.FC = () => {
     description: '',
     color: '#3B82F6',
     icon: 'Gift',
+    classIds: [],
   });
 
   const handleOpenAddReward = () => {
@@ -68,6 +72,7 @@ export const RewardStoreView: React.FC = () => {
       description: '',
       color: '#3B82F6',
       icon: 'Gift',
+      classIds: [activeClass.id],
     });
     setIsRewardFormOpen(true);
   };
@@ -82,6 +87,7 @@ export const RewardStoreView: React.FC = () => {
       description: item.description,
       color: item.color,
       icon: item.icon,
+      classIds: item.classIds || [],
     });
     setIsRewardFormOpen(true);
   };
@@ -124,6 +130,15 @@ export const RewardStoreView: React.FC = () => {
     }
   };
 
+  // Lọc quà theo classId của lớp hiện tại
+  const filteredRewards = rewards.filter(item => 
+    !item.classIds || item.classIds.length === 0 || item.classIds.includes(activeClass.id)
+  );
+
+  const sortedAndFilteredStudents = currentStudents
+    .filter(s => s.name.toLowerCase().includes(studentSearchQuery.toLowerCase()))
+    .sort((a, b) => b.stars - a.stars);
+
   // Filter students who can afford the selected reward
   const eligibleStudents = selectedRewardToRedeem
     ? currentStudents.filter(s => s.stars >= selectedRewardToRedeem.cost)
@@ -158,7 +173,7 @@ export const RewardStoreView: React.FC = () => {
                 activeTab === 'store' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Kho Quà ({rewards.length})
+              Kho Quà ({filteredRewards.length})
             </button>
             <button
               id="tab-reward-history"
@@ -191,180 +206,76 @@ export const RewardStoreView: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Content based on Tab */}
-      {activeTab === 'store' && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {rewards.map(item => (
-            <div
-              key={item.id}
-              className="bg-white border border-slate-200/90 rounded-3xl p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between group"
-            >
-              <div>
-                {/* Category Badge & Actions */}
-                <div className="flex items-center justify-between mb-3">
-                  <span
-                    className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
-                    style={{ backgroundColor: `${item.color}15`, color: item.color }}
-                  >
-                    {item.category === 'stationery'
-                      ? 'Dụng cụ học tập'
-                      : item.category === 'voucher'
-                      ? 'Đặc quyền / Vé'
-                      : item.category === 'badge'
-                      ? 'Huy hiệu danh dự'
-                      : 'Sách & Truyện'}
-                  </span>
-
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      id={`btn-edit-reward-${item.id}`}
-                      onClick={() => handleOpenEditReward(item)}
-                      className="p-1 text-slate-400 hover:text-slate-600 rounded"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      id={`btn-delete-reward-${item.id}`}
-                      onClick={() => {
-                        if (window.confirm(`Xoá phần quà "${item.name}"?`)) {
-                          deleteRewardItem(item.id);
-                        }
-                      }}
-                      className="p-1 text-slate-400 hover:text-rose-600 rounded"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Gift Visual Icon */}
-                <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white mb-3 shadow-sm mx-auto group-hover:scale-105 transition-transform" style={{ backgroundColor: item.color }}>
-                  <Gift className="w-7 h-7" />
-                </div>
-
-                {/* Info */}
-                <h3 className="font-bold text-slate-800 text-sm text-center mb-1 line-clamp-1">{item.name}</h3>
-                <p className="text-xs text-slate-500 text-center mb-3 line-clamp-2 leading-relaxed min-h-[32px]">
-                  {item.description}
-                </p>
-              </div>
-
-              {/* Price & Stock */}
-              <div className="pt-3 border-t border-slate-100 space-y-2.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-500">Giá đổi:</span>
-                  <div className="flex items-center gap-1 font-extrabold text-amber-900 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200">
-                    <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                    <span>{item.cost} sao</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-500">Tồn kho:</span>
-                  <span className={`font-semibold ${item.stock > 0 ? 'text-slate-700' : 'text-rose-600 font-bold'}`}>
-                    {item.stock > 0 ? `${item.stock} món` : 'Hết quà'}
-                  </span>
-                </div>
-
-                {/* Redeem Trigger Button */}
-                <button
-                  id={`btn-redeem-reward-${item.id}`}
-                  onClick={() => {
-                    setSelectedRewardToRedeem(item);
-                    setSelectedStudentForRedeem(currentStudents[0]?.id || '');
-                    setRedeemFeedback(null);
-                  }}
-                  disabled={item.stock <= 0}
-                  className="w-full py-2 bg-slate-900 hover:bg-emerald-600 disabled:bg-slate-200 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-xs"
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="lg:col-span-3 space-y-6">
+          {activeTab === 'store' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredRewards.map(item => (
+                <div
+                  key={item.id}
+                  className="bg-white border border-slate-200/90 rounded-3xl p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between group"
                 >
-                  <ShoppingBag className="w-3.5 h-3.5" />
-                  {item.stock > 0 ? 'Đổi Quà Cho Học Sinh' : 'Hết Hàng'}
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Redemption History View */}
-      {activeTab === 'history' && (
-        <div className="bg-white rounded-3xl border border-slate-100 shadow-xs overflow-hidden">
-          <div className="p-4 bg-slate-50/70 border-b border-slate-100 font-bold text-xs text-slate-600 uppercase tracking-wider">
-            Danh sách quà tặng đã đổi thành công ({redemptions.length})
-          </div>
-
-          <div className="divide-y divide-slate-100">
-            {redemptions.map(rd => (
-              <div key={rd.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
-                <div className="flex items-center gap-3">
-                  <img
-                    src={rd.studentAvatar}
-                    alt={rd.studentName}
-                    className="w-10 h-10 rounded-full object-cover border border-slate-200"
-                    referrerPolicy="no-referrer"
-                  />
                   <div>
-                    <h4 className="font-bold text-slate-800 text-xs">{rd.studentName}</h4>
-                    <p className="text-xs text-slate-500 flex items-center gap-1">
-                      Đã nhận: <strong className="text-amber-700">{rd.itemName}</strong>
-                    </p>
+                    <div className="flex items-center justify-between mb-3">
+                      <span
+                        className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                        style={{ backgroundColor: `${item.color}15`, color: item.color }}
+                      >
+                        {item.category === 'stationery'
+                          ? 'Dụng cụ học tập'
+                          : item.category === 'voucher'
+                          ? 'Đặc quyền / Vé'
+                          : item.category === 'badge'
+                          ? 'Huy hiệu danh dự'
+                          : 'Sách & Truyện'}
+                      </span>
+
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => handleOpenEditReward(item)}
+                          className="p-1 text-slate-400 hover:text-slate-600 rounded"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Xoá phần quà "${item.name}"?`)) {
+                              deleteRewardItem(item.id);
+                            }
+                          }}
+                          className="p-1 text-slate-400 hover:text-rose-600 rounded"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white mb-3 shadow-sm mx-auto group-hover:scale-105 transition-transform" style={{ backgroundColor: item.color }}>
+                      <Gift className="w-7 h-7" />
+                    </div>
+
+                    <div className="text-center mb-4">
+                      <h3 className="font-bold text-slate-800 text-sm line-clamp-1 group-hover:text-amber-600 transition-colors">{item.name}</h3>
+                      <p className="text-[11px] text-slate-400 mt-1 line-clamp-2 min-h-[32px]">{item.description || 'Không có mô tả chi tiết.'}</p>
+                    </div>
                   </div>
-                </div>
 
-                <div className="flex items-center gap-4 text-xs">
-                  <span className="font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg flex items-center gap-1">
-                    <Star className="w-3 h-3 fill-amber-500" />
-                    -{rd.cost} sao
-                  </span>
-                  <span className="text-slate-400 text-[11px]">
-                    {new Date(rd.timestamp).toLocaleString('vi-VN')}
-                  </span>
-                </div>
-              </div>
-            ))}
+                  <div className="border-t border-slate-100 pt-3 flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] text-slate-400 block font-medium">Sao cần đổi</span>
+                      <span className="text-sm font-black text-amber-600 flex items-center gap-0.5">
+                        {item.cost}
+                        <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                      </span>
+                    </div>
 
-            {redemptions.length === 0 && (
-              <div className="p-8 text-center text-slate-400 text-xs">Chưa có lịch sử đổi quà nào.</div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Star Point Transactions */}
-      {activeTab === 'transactions' && (
-        <div className="bg-white rounded-3xl border border-slate-100 shadow-xs overflow-hidden">
-          <div className="p-4 bg-slate-50/70 border-b border-slate-100 font-bold text-xs text-slate-600 uppercase tracking-wider">
-            Nhật ký thưởng & Trừ sao ({pointTransactions.length})
-          </div>
-
-          <div className="divide-y divide-slate-100">
-            {pointTransactions.map(tx => (
-              <div key={tx.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors text-xs">
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`w-7 h-7 rounded-full flex items-center justify-center font-bold ${
-                      tx.type === 'positive' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
-                    }`}
-                  >
-                    {tx.type === 'positive' ? '+' : '-'}
-                  </span>
-                  <div>
-                    <h4 className="font-bold text-slate-800">{tx.studentName}</h4>
-                    <p className="text-slate-500">{tx.reason}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <span className={`font-bold ${tx.type === 'positive' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                    {tx.amount > 0 ? `+${tx.amount}` : tx.amount} sao
-                  </span>
-                  <span className="text-slate-400 text-[11px]">
-                    {new Date(tx.timestamp).toLocaleString('vi-VN')}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
+                    <button
+                      disabled={item.stock <= 0}
+                      onClick={() => {
+                        setSelectedRewardToRedeem(item);
+                        const firstEligible = currentStudents.find(s => s.stars >= item.cost);
+                        setSelectedStudentForRedeem(firstEligible?.id || currentStudents[0]?.id || '');
+                      }}
         </div>
       )}
 
@@ -541,6 +452,33 @@ export const RewardStoreView: React.FC = () => {
                   placeholder="Ghi chú chi tiết về món quà..."
                   className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-amber-500"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
+                  Lớp học được áp dụng quà tặng *
+                </label>
+                <div className="flex flex-wrap gap-2.5 bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                  {classes.map(c => {
+                    const isChecked = formData.classIds.includes(c.id);
+                    return (
+                      <label key={c.id} className="flex items-center gap-2 text-xs font-bold text-slate-800 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {
+                            const updatedIds = isChecked
+                              ? formData.classIds.filter(id => id !== c.id)
+                              : [...formData.classIds, c.id];
+                            setFormData({ ...formData, classIds: updatedIds });
+                          }}
+                          className="w-4 h-4 text-amber-600 focus:ring-amber-500 rounded border-slate-300 cursor-pointer"
+                        />
+                        <span>{c.name}</span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
 
               <div>
