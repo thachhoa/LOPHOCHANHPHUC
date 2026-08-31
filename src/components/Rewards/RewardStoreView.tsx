@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useClassroom } from '../../context/ClassroomContext';
-import { RewardItem } from '../../types';
+import { RewardItem, Student } from '../../types';
 
 export const RewardStoreView: React.FC = () => {
   const {
@@ -37,6 +37,7 @@ export const RewardStoreView: React.FC = () => {
   const [selectedStudentForRedeem, setSelectedStudentForRedeem] = useState<string>('');
   const [redeemFeedback, setRedeemFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [studentSearchQuery, setStudentSearchQuery] = useState('');
+  const [selectedStudentDetails, setSelectedStudentDetails] = useState<Student | null>(null);
 
   const [isRewardFormOpen, setIsRewardFormOpen] = useState(false);
   const [editingRewardItem, setEditingRewardItem] = useState<RewardItem | null>(null);
@@ -383,7 +384,12 @@ export const RewardStoreView: React.FC = () => {
 
           <div className="space-y-1.5 max-h-[400px] lg:max-h-[550px] overflow-y-auto pr-1">
             {sortedAndFilteredStudents.map((s, idx) => (
-              <div key={s.id} className="flex items-center justify-between p-2.5 rounded-2xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100/80 bg-slate-50/20">
+              <div
+                key={s.id}
+                onClick={() => setSelectedStudentDetails(s)}
+                className="flex items-center justify-between p-2.5 rounded-2xl hover:bg-amber-50/50 hover:border-amber-200/60 transition-all border border-transparent bg-slate-50/25 cursor-pointer group/item hover:shadow-2xs"
+                title="Nhấp để xem chi tiết sao & lịch sử đổi quà"
+              >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <span className="text-[10px] font-bold text-slate-400 w-4 text-center">{idx + 1}</span>
                   <div className="w-8 h-8 rounded-full bg-blue-50 border border-slate-100 flex items-center justify-center overflow-hidden shrink-0">
@@ -394,7 +400,7 @@ export const RewardStoreView: React.FC = () => {
                     )}
                   </div>
                   <div className="min-w-0">
-                    <span className="font-bold text-xs text-slate-800 block truncate leading-tight">{s.name}</span>
+                    <span className="font-bold text-xs text-slate-800 block truncate leading-tight group-hover/item:text-amber-700 transition-colors">{s.name}</span>
                     <span className="text-[9px] text-slate-400 block mt-0.5">{s.studentCode}</span>
                   </div>
                 </div>
@@ -647,6 +653,105 @@ export const RewardStoreView: React.FC = () => {
           </div>
         </div>
       )}
+      {/* Student Stars & Redemption History Modal */}
+      {selectedStudentDetails && (() => {
+        const studentRedemptions = redemptions.filter(r => r.studentId === selectedStudentDetails.id);
+        const totalSpent = studentRedemptions.reduce((sum, r) => sum + r.cost, 0);
+        const initialStars = selectedStudentDetails.stars + totalSpent;
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+            <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-lg w-full p-6 space-y-4">
+              {/* Header */}
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-blue-50 border border-slate-100 flex items-center justify-center overflow-hidden shrink-0">
+                    {selectedStudentDetails.avatar ? (
+                      <img src={selectedStudentDetails.avatar} alt={selectedStudentDetails.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    ) : (
+                      <span className="text-xs font-bold text-blue-600 uppercase">{selectedStudentDetails.name.substring(0, 2)}</span>
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-800 text-base leading-tight">
+                      {selectedStudentDetails.name}
+                    </h3>
+                    <span className="text-[10px] text-slate-400 font-bold block mt-0.5">
+                      Mã HS: {selectedStudentDetails.studentCode}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedStudentDetails(null)}
+                  className="text-slate-400 hover:text-slate-600 cursor-pointer text-lg"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Stars Summary Grid */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-slate-50 border border-slate-200/60 p-3 rounded-2xl text-center">
+                  <span className="text-[10px] text-slate-500 font-bold block uppercase tracking-wider">Sao Ban Đầu</span>
+                  <span className="text-lg font-black text-amber-600 block mt-1">
+                    ⭐ {initialStars}
+                  </span>
+                </div>
+                <div className="bg-amber-50/50 border border-amber-100 p-3 rounded-2xl text-center">
+                  <span className="text-[10px] text-amber-800/80 font-bold block uppercase tracking-wider">Quà Đã Đổi</span>
+                  <span className="text-lg font-black text-amber-700 block mt-1">
+                    🎁 {studentRedemptions.length}
+                  </span>
+                </div>
+                <div className="bg-emerald-50/50 border border-emerald-100 p-3 rounded-2xl text-center">
+                  <span className="text-[10px] text-emerald-800 font-bold block uppercase tracking-wider">Sao Còn Lại</span>
+                  <span className="text-lg font-black text-emerald-600 block mt-1">
+                    ⭐ {selectedStudentDetails.stars}
+                  </span>
+                </div>
+              </div>
+
+              {/* Redemption History list */}
+              <div className="space-y-2">
+                <h4 className="font-bold text-slate-700 text-xs uppercase tracking-wider">
+                  Danh sách quà đã đổi ({studentRedemptions.length})
+                </h4>
+                
+                <div className="max-h-[200px] overflow-y-auto pr-1 divide-y divide-slate-100 border border-slate-100 rounded-2xl bg-slate-50/30">
+                  {studentRedemptions.map(rd => (
+                    <div key={rd.id} className="p-3 flex items-center justify-between text-xs">
+                      <div>
+                        <h5 className="font-bold text-slate-800">{rd.itemName}</h5>
+                        <span className="text-[10px] text-slate-400 block mt-0.5">
+                          {new Date(rd.timestamp).toLocaleString('vi-VN')}
+                        </span>
+                      </div>
+                      <span className="font-extrabold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-100">
+                        -{rd.cost} sao
+                      </span>
+                    </div>
+                  ))}
+                  {studentRedemptions.length === 0 && (
+                    <div className="p-8 text-center text-slate-400 text-xs">
+                      Học sinh chưa thực hiện đổi quà nào.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="pt-3 border-t border-slate-100 flex justify-end">
+                <button
+                  onClick={() => setSelectedStudentDetails(null)}
+                  className="px-5 py-2 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl cursor-pointer"
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };
