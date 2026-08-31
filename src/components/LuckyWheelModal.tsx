@@ -48,7 +48,7 @@ export const LuckyWheelModal: React.FC = () => {
 
   const candidatesList = currentStudents.filter(s => selectedCandidates.includes(s.id));
 
-  // Draw the lucky wheel on Canvas
+  // Draw the lucky wheel on Canvas (Minimalist design: no colors, no text names, only clean rotation guide)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -63,8 +63,7 @@ export const LuckyWheelModal: React.FC = () => {
 
     ctx.clearRect(0, 0, width, height);
 
-    const numSegments = candidatesList.length;
-    if (numSegments === 0) {
+    if (candidatesList.length === 0) {
       ctx.fillStyle = '#94a3b8';
       ctx.font = '14px sans-serif';
       ctx.textAlign = 'center';
@@ -72,56 +71,48 @@ export const LuckyWheelModal: React.FC = () => {
       return;
     }
 
-    const anglePerSegment = (Math.PI * 2) / numSegments;
-    const COLORS = [
-      '#F43F5E', '#FB923C', '#FBBF24', '#34D399', '#38BDF8',
-      '#818CF8', '#A78BFA', '#F472B6', '#10B981', '#06B6D4',
-      '#EAB308', '#6366F1', '#EC4899', '#14B8A6', '#8B5CF6',
-    ];
-
-    candidatesList.forEach((std, i) => {
-      const startAngle = i * anglePerSegment;
-      const endAngle = startAngle + anglePerSegment;
-
-      ctx.beginPath();
-      ctx.moveTo(centerX, centerY);
-      ctx.arc(centerX, centerY, radius, startAngle, endAngle);
-      ctx.closePath();
-
-      ctx.fillStyle = COLORS[i % COLORS.length];
-      ctx.fill();
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      // Text label
-      ctx.save();
-      ctx.translate(centerX, centerY);
-      ctx.rotate(startAngle + anglePerSegment / 2);
-      ctx.textAlign = 'right';
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 12px sans-serif';
-      ctx.shadowColor = 'rgba(0,0,0,0.4)';
-      ctx.shadowBlur = 3;
-
-      // Truncate name if too long
-      const displayName = std.name.length > 14 ? std.name.substring(0, 12) + '...' : std.name;
-      ctx.fillText(displayName, radius - 20, 4);
-      ctx.restore();
-    });
-
-    // Center circle pin
+    // 1. Draw outer circle border
     ctx.beginPath();
-    ctx.arc(centerX, centerY, 24, 0, Math.PI * 2);
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    ctx.fillStyle = '#f8fafc';
+    ctx.fill();
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 6;
+    ctx.stroke();
+
+    // 2. Draw modern decorative fan-like sectors (very light pastel colors for rotation vibe)
+    const numFans = 8;
+    const fanAngle = (Math.PI * 2) / numFans;
+    for (let i = 0; i < numFans; i++) {
+      if (i % 2 === 0) {
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.arc(centerX, centerY, radius - 3, i * fanAngle, (i + 1) * fanAngle);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(124, 58, 237, 0.05)'; // Very light lavender
+        ctx.fill();
+      }
+    }
+
+    // 3. Draw middle circle guideline
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius - 20, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(99, 102, 241, 0.12)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // 4. Center circle pin (small axle)
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, 32, 0, Math.PI * 2);
     ctx.fillStyle = '#ffffff';
     ctx.fill();
-    ctx.strokeStyle = '#e2e8f0';
-    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#f1f5f9';
+    ctx.lineWidth = 3;
     ctx.stroke();
 
     ctx.beginPath();
-    ctx.arc(centerX, centerY, 12, 0, Math.PI * 2);
-    ctx.fillStyle = '#10b981';
+    ctx.arc(centerX, centerY, 15, 0, Math.PI * 2);
+    ctx.fillStyle = '#6366f1';
     ctx.fill();
   }, [candidatesList]);
 
@@ -284,6 +275,7 @@ export const LuckyWheelModal: React.FC = () => {
                   return (
                     <div
                       key={std.id}
+                      title={std.name}
                       className="absolute w-9 h-9 rounded-full border-2 border-white shadow-xs overflow-hidden bg-white shrink-0 flex items-center justify-center pointer-events-none z-10"
                       style={{
                         left: `${x}px`,
