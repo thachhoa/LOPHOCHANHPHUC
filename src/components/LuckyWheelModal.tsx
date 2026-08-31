@@ -46,6 +46,30 @@ export const LuckyWheelModal: React.FC = () => {
 
   const candidatesList = currentStudents.filter(s => selectedCandidates.includes(s.id));
 
+  // Phân bổ toạ độ rải rác lơ lửng khắp không gian khung hình 350x350
+  const getScatteredCoords = (index: number, total: number) => {
+    if (total === 0) return { x: 0, y: 0 };
+    
+    // Chia khung hình thành lưới để tránh chồng chéo hoàn toàn
+    const cols = Math.ceil(Math.sqrt(total)) || 1;
+    const rows = Math.ceil(total / cols) || 1;
+    
+    const row = Math.floor(index / cols);
+    const col = index % cols;
+    
+    const cellWidth = 330 / cols;
+    const cellHeight = 330 / rows;
+    
+    // Độ lệch ngẫu nhiên nhẹ nhàng
+    const seedX = Math.sin(index * 17) * 0.5 + 0.5; // 0 -> 1
+    const seedY = Math.cos(index * 29) * 0.5 + 0.5; // 0 -> 1
+    
+    const x = col * cellWidth + (cellWidth - 56) * seedX + 8;
+    const y = row * cellHeight + (cellHeight - 64) * seedY + 8;
+    
+    return { x, y };
+  };
+
   if (!isLuckyWheelOpen) return null;
 
   const startSpin = () => {
@@ -143,6 +167,30 @@ export const LuckyWheelModal: React.FC = () => {
             0%, 100% { transform: skewX(0deg) skewY(0deg); }
             50% { transform: skewX(2.5deg) skewY(1.5deg); }
           }
+          @keyframes floatScatter1 {
+            0%, 100% { transform: translate(0px, 0px) scale(1); }
+            25% { transform: translate(30px, -45px) scale(1.1); }
+            50% { transform: translate(-35px, 25px) scale(0.95); }
+            75% { transform: translate(40px, 35px) scale(1.05); }
+          }
+          @keyframes floatScatter2 {
+            0%, 100% { transform: translate(0px, 0px) scale(1); }
+            25% { transform: translate(-45px, 30px) scale(0.95); }
+            50% { transform: translate(25px, -35px) scale(1.1); }
+            75% { transform: translate(-30px, -45px) scale(1.02); }
+          }
+          @keyframes floatScatter3 {
+            0%, 100% { transform: translate(0px, 0px) scale(1); }
+            25% { transform: translate(35px, 35px) scale(1.05); }
+            50% { transform: translate(-30px, -30px) scale(0.95); }
+            75% { transform: translate(-45px, 25px) scale(1.08); }
+          }
+          @keyframes floatScatter4 {
+            0%, 100% { transform: translate(0px, 0px) scale(1); }
+            25% { transform: translate(-25px, -45px) scale(0.95); }
+            50% { transform: translate(40px, 30px) scale(1.05); }
+            75% { transform: translate(30px, -30px) scale(1.02); }
+          }
         `}</style>
 
         <motion.div
@@ -173,69 +221,49 @@ export const LuckyWheelModal: React.FC = () => {
             {/* Cột Trái (lg:col-span-3) - Vòng quay & Winner Overlay */}
             <div className="lg:col-span-3 flex flex-col items-center justify-center bg-slate-50/50 rounded-2xl p-4 border border-slate-200/50 relative overflow-hidden min-h-[400px]">
               
-              {/* Mũi tên chỉ vị trí */}
-              <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20 w-0 h-0 border-l-[14px] border-l-transparent border-r-[14px] border-r-transparent border-t-[22px] border-t-amber-500 drop-shadow-md" />
-
-              {/* Container quay của các Avatar học sinh lơ lửng, to hơn và quay rộng khắp khung hình */}
+              {/* Container quay của các Avatar học sinh lơ lửng tự do */}
               <div
                 style={{
-                  transform: `rotate(${spinAngle}deg)`,
-                  transition: isSpinning ? 'transform 3.8s cubic-bezier(0.15, 0.9, 0.2, 1)' : 'none',
-                  animation: isSpinning ? (
-                    activeEffect === 'bounce' ? 'wheelBounce 0.4s infinite ease-in-out' :
-                    activeEffect === 'zoom' ? 'wheelZoom 0.5s infinite ease-in-out' :
-                    activeEffect === 'orbit' ? 'wheelOrbit 0.6s infinite linear' :
-                    activeEffect === 'rain' ? 'wheelRain 0.4s infinite ease-in-out' :
-                    activeEffect === 'pulse' ? 'wheelPulse 0.5s infinite ease-in-out' :
-                    activeEffect === 'wave' ? 'wheelWave 0.5s infinite ease-in-out' : 'none'
-                  ) : 'none',
+                  animation: isSpinning ? 'wheelWave 1.4s infinite ease-in-out' : 'none',
                 }}
                 className="w-full max-w-[350px] h-full max-h-[350px] aspect-square rounded-full flex items-center justify-center relative bg-transparent"
               >
-                {/* Nút quay tròn giữa vòng quay (Tâm trục) */}
-                <button
-                  disabled={isSpinning || candidatesList.length === 0}
-                  onClick={startSpin}
-                  className="absolute z-20 w-16 h-16 rounded-full bg-slate-900 text-white font-bold text-xs shadow-lg hover:scale-105 transition-transform flex items-center justify-center cursor-pointer border-4 border-white disabled:bg-slate-300 disabled:cursor-not-allowed"
-                >
-                  {isSpinning ? 'QUAY...' : 'QUAY'}
-                </button>
-
-                {/* Ảnh đại diện học sinh lơ lửng cỡ LỚN, tự động bù trừ góc xoay động để luôn thẳng đứng */}
+                {/* Ảnh đại diện học sinh lơ lửng cỡ SIÊU LỚN, phân bổ ngẫu nhiên khắp khung hình */}
                 {candidatesList.map((std, i) => {
-                  const angle = (i * 360) / candidatesList.length;
-                  const radius = 135; // Bán kính quỹ đạo lớn (chiếm trọn khung hình 350px)
-                  const rad = (angle * Math.PI) / 180;
-                  const x = 175 + radius * Math.cos(rad) - 26; // offset cho container avatar w-13 (52px)
-                  const y = 175 + radius * Math.sin(rad) - 26;
+                  const { x, y } = getScatteredCoords(i, candidatesList.length);
                   
                   // Chỉ hiển thị tên riêng ngắn gọn cho dễ nhìn
                   const shortName = std.name.trim().split(' ').pop() || std.name;
 
-                  // Màu viền phong cách
+                  // Màu viền phong cách cho từng bóng avatar
                   const borderColors = ['border-blue-400', 'border-amber-400', 'border-purple-400', 'border-emerald-400', 'border-pink-400'];
                   const borderColor = borderColors[i % borderColors.length];
+
+                  // Hiệu ứng bay đan chéo ngẫu nhiên khi quay
+                  const anims = ['floatScatter1', 'floatScatter2', 'floatScatter3', 'floatScatter4'];
+                  const scatterAnim = anims[i % anims.length];
 
                   return (
                     <div
                       key={std.id}
                       title={std.name}
-                      className="absolute w-13 flex flex-col items-center z-10 select-none cursor-pointer"
+                      className="absolute flex flex-col items-center z-10 select-none cursor-pointer"
                       style={{
                         left: `${x}px`,
                         top: `${y}px`,
-                        transform: `rotate(${-spinAngle}deg)`, // Bù trừ góc xoay động của cha để luôn thẳng đứng
-                        transition: isSpinning ? 'transform 3.8s cubic-bezier(0.15, 0.9, 0.2, 1)' : 'none',
+                        animation: isSpinning ? `${scatterAnim} 1.3s infinite ease-in-out` : 'none',
+                        transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)', // chuyển đổi mượt khi thay đổi candidate
                       }}
                     >
-                      <div className={`w-11 h-11 rounded-full border-3 ${borderColor} shadow-md overflow-hidden bg-slate-100 shrink-0 hover:scale-115 transition-transform`}>
+                      {/* Avatar to hơn hẳn (w-13 h-13) */}
+                      <div className={`w-13 h-13 rounded-full border-3 ${borderColor} shadow-md overflow-hidden bg-slate-100 shrink-0 hover:scale-115 transition-transform`}>
                         {std.avatar ? (
                           <img src={std.avatar} alt={std.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                         ) : (
-                          <span className="text-[11px] font-bold text-slate-500 uppercase">{std.name.substring(0, 2)}</span>
+                          <span className="text-[12px] font-bold text-slate-500 uppercase">{std.name.substring(0, 2)}</span>
                         )}
                       </div>
-                      <span className="text-[8px] font-black text-slate-700 bg-white/95 border border-slate-200/60 px-1 py-0.2 rounded-md shadow-3xs max-w-full truncate block mt-0.5 leading-tight">
+                      <span className="text-[9px] font-black text-slate-700 bg-white/95 border border-slate-200/60 px-1.5 py-0.2 rounded-md shadow-3xs max-w-full truncate block mt-0.5 leading-tight">
                         {shortName}
                       </span>
                     </div>
