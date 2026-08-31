@@ -29,7 +29,6 @@ export const RewardStoreView: React.FC = () => {
     updateRewardItem,
     deleteRewardItem,
     activeClass,
-    setSelectedStudent,
     classes,
   } = useClassroom();
 
@@ -39,7 +38,6 @@ export const RewardStoreView: React.FC = () => {
   const [redeemFeedback, setRedeemFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [studentSearchQuery, setStudentSearchQuery] = useState('');
 
-  // Add / Edit Reward Item Form Modal
   const [isRewardFormOpen, setIsRewardFormOpen] = useState(false);
   const [editingRewardItem, setEditingRewardItem] = useState<RewardItem | null>(null);
   const [formData, setFormData] = useState<{
@@ -130,7 +128,6 @@ export const RewardStoreView: React.FC = () => {
     }
   };
 
-  // Lọc quà theo classId của lớp hiện tại
   const filteredRewards = rewards.filter(item => 
     !item.classIds || item.classIds.length === 0 || item.classIds.includes(activeClass.id)
   );
@@ -139,14 +136,8 @@ export const RewardStoreView: React.FC = () => {
     .filter(s => s.name.toLowerCase().includes(studentSearchQuery.toLowerCase()))
     .sort((a, b) => b.stars - a.stars);
 
-  // Filter students who can afford the selected reward
-  const eligibleStudents = selectedRewardToRedeem
-    ? currentStudents.filter(s => s.stars >= selectedRewardToRedeem.cost)
-    : [];
-
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
@@ -163,13 +154,12 @@ export const RewardStoreView: React.FC = () => {
           </p>
         </div>
 
-        {/* Tab & Add Button */}
         <div className="flex items-center gap-2">
           <div className="flex bg-slate-100 p-1 rounded-xl text-xs font-bold">
             <button
               id="tab-reward-store"
               onClick={() => setActiveTab('store')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
                 activeTab === 'store' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -178,7 +168,7 @@ export const RewardStoreView: React.FC = () => {
             <button
               id="tab-reward-history"
               onClick={() => setActiveTab('history')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
                 activeTab === 'history' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -187,7 +177,7 @@ export const RewardStoreView: React.FC = () => {
             <button
               id="tab-reward-transactions"
               onClick={() => setActiveTab('transactions')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
                 activeTab === 'transactions' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -198,7 +188,7 @@ export const RewardStoreView: React.FC = () => {
           <button
             id="btn-add-new-reward"
             onClick={handleOpenAddReward}
-            className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs shadow-amber-500/30 transition-all"
+            className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs shadow-amber-500/30 transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             Thêm Quà Mới
@@ -221,19 +211,13 @@ export const RewardStoreView: React.FC = () => {
                         className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
                         style={{ backgroundColor: `${item.color}15`, color: item.color }}
                       >
-                        {item.category === 'stationery'
-                          ? 'Dụng cụ học tập'
-                          : item.category === 'voucher'
-                          ? 'Đặc quyền / Vé'
-                          : item.category === 'badge'
-                          ? 'Huy hiệu danh dự'
-                          : 'Sách & Truyện'}
+                        {item.category === 'stationery' ? 'Dụng cụ học tập' : item.category === 'voucher' ? 'Đặc quyền / Vé' : item.category === 'badge' ? 'Huy hiệu danh dự' : 'Sách & Truyện'}
                       </span>
 
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => handleOpenEditReward(item)}
-                          className="p-1 text-slate-400 hover:text-slate-600 rounded"
+                          className="p-1 text-slate-400 hover:text-slate-600 rounded cursor-pointer"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
@@ -243,7 +227,7 @@ export const RewardStoreView: React.FC = () => {
                               deleteRewardItem(item.id);
                             }
                           }}
-                          className="p-1 text-slate-400 hover:text-rose-600 rounded"
+                          className="p-1 text-slate-400 hover:text-rose-600 rounded cursor-pointer"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -276,10 +260,156 @@ export const RewardStoreView: React.FC = () => {
                         const firstEligible = currentStudents.find(s => s.stars >= item.cost);
                         setSelectedStudentForRedeem(firstEligible?.id || currentStudents[0]?.id || '');
                       }}
-        </div>
-      )}
+                      className={`px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1 cursor-pointer ${
+                        item.stock > 0
+                          ? 'bg-slate-900 hover:bg-slate-800 text-white shadow-slate-900/10'
+                          : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                      }`}
+                    >
+                      {item.stock > 0 ? (
+                        <>
+                          <span>Đổi quà</span>
+                          <span className="text-[10px] bg-white/20 px-1.5 py-0.2 rounded">Tồn: {item.stock}</span>
+                        </>
+                      ) : (
+                        <span>Hết hàng</span>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ))}
 
-      {/* Redeem Modal Dialog */}
+              {filteredRewards.length === 0 && (
+                <div className="col-span-full bg-slate-50 border border-dashed border-slate-200 rounded-3xl p-12 text-center text-slate-400 text-xs">
+                  Chưa có phần quà nào trong kho. Nhấp "Thêm Quà Mới" để bắt đầu!
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'history' && (
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-xs overflow-hidden">
+              <div className="p-4 bg-slate-50/70 border-b border-slate-100 font-bold text-xs text-slate-600 uppercase tracking-wider">
+                Lịch sử quy đổi phần quà của lớp ({redemptions.length})
+              </div>
+
+              <div className="divide-y divide-slate-100">
+                {redemptions.map(rd => (
+                  <div key={rd.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors text-xs">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center shrink-0">
+                        <Gift className="w-4 h-4 text-amber-500" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-slate-800">
+                          {rd.studentName} <span className="font-normal text-slate-400">đã đổi</span> {rd.itemName}
+                        </h4>
+                        <p className="text-slate-500 text-[10px]">Mã giao dịch: {rd.id.substring(0, 8)}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <span className="font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg flex items-center gap-1">
+                        <Star className="w-3 h-3 fill-amber-500" />
+                        -{rd.cost} sao
+                      </span>
+                      <span className="text-slate-400 text-[11px]">
+                        {new Date(rd.timestamp).toLocaleString('vi-VN')}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+
+                {redemptions.length === 0 && (
+                  <div className="p-8 text-center text-slate-400 text-xs">Chưa có lịch sử đổi quà nào.</div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'transactions' && (
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-xs overflow-hidden">
+              <div className="p-4 bg-slate-50/70 border-b border-slate-100 font-bold text-xs text-slate-600 uppercase tracking-wider">
+                Nhật ký thưởng & Trừ sao ({pointTransactions.length})
+              </div>
+
+              <div className="divide-y divide-slate-100">
+                {pointTransactions.map(tx => (
+                  <div key={tx.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors text-xs">
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`w-7 h-7 rounded-full flex items-center justify-center font-bold ${
+                          tx.type === 'positive' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+                        }`}
+                      >
+                        {tx.type === 'positive' ? '+' : '-'}
+                      </span>
+                      <div>
+                        <h4 className="font-bold text-slate-800">{tx.studentName}</h4>
+                        <p className="text-slate-500">{tx.reason}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <span className={`font-bold ${tx.type === 'positive' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        {tx.amount > 0 ? `+${tx.amount}` : tx.amount} sao
+                      </span>
+                      <span className="text-slate-400 text-[11px]">
+                        {new Date(tx.timestamp).toLocaleString('vi-VN')}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-2xs space-y-4 h-fit max-h-[calc(100vh-180px)] overflow-y-auto lg:sticky lg:top-6">
+          <h3 className="font-extrabold text-slate-800 text-sm flex items-center justify-between border-b border-slate-100 pb-2">
+            <span className="flex items-center gap-1.5">⭐ Bảng Sao Học Sinh</span>
+            <span className="text-[10px] bg-amber-50 text-amber-800 px-2 py-0.5 rounded-full font-bold">
+              {currentStudents.length} HS
+            </span>
+          </h3>
+          
+          <input
+            type="text"
+            placeholder="Tìm nhanh học sinh..."
+            value={studentSearchQuery}
+            onChange={(e) => setStudentSearchQuery(e.target.value)}
+            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 font-bold"
+          />
+
+          <div className="space-y-1.5 max-h-[400px] lg:max-h-[550px] overflow-y-auto pr-1">
+            {sortedAndFilteredStudents.map((s, idx) => (
+              <div key={s.id} className="flex items-center justify-between p-2.5 rounded-2xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100/80 bg-slate-50/20">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="text-[10px] font-bold text-slate-400 w-4 text-center">{idx + 1}</span>
+                  <div className="w-8 h-8 rounded-full bg-blue-50 border border-slate-100 flex items-center justify-center overflow-hidden shrink-0">
+                    {s.avatar ? (
+                      <img src={s.avatar} alt={s.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    ) : (
+                      <span className="text-[10px] font-bold text-blue-600 uppercase">{s.name.substring(0, 2)}</span>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <span className="font-bold text-xs text-slate-800 block truncate leading-tight">{s.name}</span>
+                    <span className="text-[9px] text-slate-400 block mt-0.5">{s.studentCode}</span>
+                  </div>
+                </div>
+                <span className="text-xs font-black text-amber-600 shrink-0 bg-amber-50 px-2 py-1 rounded-lg border border-amber-100">
+                  ⭐ {s.stars}
+                </span>
+              </div>
+            ))}
+            {sortedAndFilteredStudents.length === 0 && (
+              <div className="text-center text-slate-400 text-[11px] py-4">Không tìm thấy học sinh.</div>
+            )}
+          </div>
+        </div>
+      </div>
+
       {selectedRewardToRedeem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
           <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-md w-full p-6">
@@ -291,13 +421,12 @@ export const RewardStoreView: React.FC = () => {
               <button
                 id="btn-close-redeem-modal"
                 onClick={() => setSelectedRewardToRedeem(null)}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-slate-400 hover:text-slate-600 cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            {/* Gift preview */}
             <div className="my-4 p-4 rounded-2xl bg-amber-50/70 border border-amber-200 flex items-center gap-3">
               <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white" style={{ backgroundColor: selectedRewardToRedeem.color }}>
                 <Gift className="w-6 h-6" />
@@ -333,7 +462,7 @@ export const RewardStoreView: React.FC = () => {
                   id="select-student-for-redeem"
                   value={selectedStudentForRedeem}
                   onChange={e => setSelectedStudentForRedeem(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-amber-500"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-amber-500 cursor-pointer"
                 >
                   {currentStudents.map(s => {
                     const canAfford = s.stars >= selectedRewardToRedeem.cost;
@@ -351,14 +480,14 @@ export const RewardStoreView: React.FC = () => {
                   type="button"
                   id="btn-cancel-redeem-modal"
                   onClick={() => setSelectedRewardToRedeem(null)}
-                  className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl"
+                  className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
                 >
                   Huỷ
                 </button>
                 <button
                   type="submit"
                   id="btn-confirm-redeem-modal"
-                  className="px-5 py-2 text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 rounded-xl shadow-xs"
+                  className="px-5 py-2 text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 rounded-xl shadow-xs cursor-pointer"
                 >
                   Xác nhận Đổi Quà
                 </button>
@@ -368,7 +497,6 @@ export const RewardStoreView: React.FC = () => {
         </div>
       )}
 
-      {/* Add / Edit Reward Item Modal */}
       {isRewardFormOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
           <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-md w-full p-6">
@@ -379,7 +507,7 @@ export const RewardStoreView: React.FC = () => {
               <button
                 id="btn-close-reward-form"
                 onClick={() => setIsRewardFormOpen(false)}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-slate-400 hover:text-slate-600 cursor-pointer"
               >
                 ✕
               </button>
@@ -432,7 +560,7 @@ export const RewardStoreView: React.FC = () => {
                   id="input-reward-category"
                   value={formData.category}
                   onChange={e => setFormData({ ...formData, category: e.target.value as 'stationery' | 'voucher' | 'badge' | 'toy' | 'book' })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-amber-500"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 cursor-pointer"
                 >
                   <option value="stationery">Dụng cụ học tập</option>
                   <option value="voucher">Đặc quyền / Vé miễn bài</option>
@@ -489,7 +617,7 @@ export const RewardStoreView: React.FC = () => {
                       key={color}
                       type="button"
                       onClick={() => setFormData({ ...formData, color })}
-                      className={`w-7 h-7 rounded-full border-2 transition-transform ${
+                      className={`w-7 h-7 rounded-full border-2 transition-transform cursor-pointer ${
                         formData.color === color ? 'border-slate-800 scale-110' : 'border-transparent'
                       }`}
                       style={{ backgroundColor: color }}
@@ -503,14 +631,14 @@ export const RewardStoreView: React.FC = () => {
                   type="button"
                   id="btn-cancel-reward-form"
                   onClick={() => setIsRewardFormOpen(false)}
-                  className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl"
+                  className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
                 >
                   Huỷ
                 </button>
                 <button
                   type="submit"
                   id="btn-submit-reward-form"
-                  className="px-5 py-2 text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 rounded-xl shadow-xs"
+                  className="px-5 py-2 text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 rounded-xl shadow-xs cursor-pointer"
                 >
                   {editingRewardItem ? 'Lưu Thay Đổi' : 'Thêm Vào Kho'}
                 </button>
