@@ -176,68 +176,96 @@ export const LuckyWheelModal: React.FC = () => {
               {/* Mũi tên chỉ vị trí */}
               <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20 w-0 h-0 border-l-[14px] border-l-transparent border-r-[14px] border-r-transparent border-t-[22px] border-t-amber-500 drop-shadow-md" />
 
-              {/* Container quay của các Avatar học sinh (Không nền, chỉ nét đứt dẫn hướng mảnh) */}
-              <div
-                style={{
-                  transform: `rotate(${spinAngle}deg)`,
-                  transition: isSpinning ? 'transform 3.8s cubic-bezier(0.15, 0.9, 0.2, 1)' : 'none',
-                  animation: isSpinning ? (
-                    activeEffect === 'bounce' ? 'wheelBounce 0.4s infinite ease-in-out' :
-                    activeEffect === 'zoom' ? 'wheelZoom 0.5s infinite ease-in-out' :
-                    activeEffect === 'orbit' ? 'wheelOrbit 0.6s infinite linear' :
-                    activeEffect === 'rain' ? 'wheelRain 0.4s infinite ease-in-out' :
-                    activeEffect === 'pulse' ? 'wheelPulse 0.5s infinite ease-in-out' :
-                    activeEffect === 'wave' ? 'wheelWave 0.5s infinite ease-in-out' : 'none'
-                  ) : 'none',
-                }}
-                className="w-80 h-80 rounded-full flex items-center justify-center relative border-2 border-dashed border-purple-200/50 bg-transparent"
-              >
-                {/* Ảnh đại diện học sinh lơ lửng chạy dọc chu vi, bù trừ góc xoay động để luôn thẳng đứng */}
-                {candidatesList.map((std, i) => {
-                  const angle = (i * 360) / candidatesList.length;
-                  const radius = 120; // Bán kính quỹ đạo
-                  const rad = (angle * Math.PI) / 180;
-                  const x = 160 + radius * Math.cos(rad) - 24; // offset cho container w-12 (48px)
-                  const y = 160 + radius * Math.sin(rad) - 24;
-                  
-                  // Chỉ hiển thị tên riêng ngắn gọn cho dễ nhìn
-                  const shortName = std.name.trim().split(' ').pop() || std.name;
+              {/* Bánh xe quay có 4 cánh quạt & chân đế đỡ giống 100% ảnh mẫu */}
+              <div className="relative flex flex-col items-center justify-center pt-2 pb-6">
+                
+                {/* Bánh xe */}
+                <div
+                  style={{
+                    transform: `rotate(${spinAngle}deg)`,
+                    transition: isSpinning ? 'transform 3.8s cubic-bezier(0.15, 0.9, 0.2, 1)' : 'none',
+                    animation: isSpinning ? (
+                      activeEffect === 'bounce' ? 'wheelBounce 0.4s infinite ease-in-out' :
+                      activeEffect === 'zoom' ? 'wheelZoom 0.5s infinite ease-in-out' :
+                      activeEffect === 'orbit' ? 'wheelOrbit 0.6s infinite linear' :
+                      activeEffect === 'rain' ? 'wheelRain 0.4s infinite ease-in-out' :
+                      activeEffect === 'pulse' ? 'wheelPulse 0.5s infinite ease-in-out' :
+                      activeEffect === 'wave' ? 'wheelWave 0.5s infinite ease-in-out' : 'none'
+                    ) : 'none',
+                  }}
+                  className="w-72 h-72 rounded-full border-[7px] border-indigo-400 bg-linear-to-b from-indigo-50/50 to-purple-50/50 relative flex items-center justify-center shadow-lg"
+                >
+                  {/* 4 cánh quạt trang trí tím nhạt chỉ về tâm */}
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="w-full h-full relative rounded-full overflow-hidden">
+                      {/* Trục tâm và các tia mờ */}
+                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-0.5 bg-indigo-200/40" />
+                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-full w-0.5 bg-indigo-200/40" />
+                      {/* 4 hình tam giác hướng tâm */}
+                      <div className="absolute top-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[30px] border-l-transparent border-r-[30px] border-r-transparent border-t-[60px] border-t-indigo-300/40" />
+                      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[30px] border-l-transparent border-r-[30px] border-r-transparent border-b-[60px] border-b-indigo-300/40" />
+                      <div className="absolute left-2 top-1/2 -translate-y-1/2 w-0 h-0 border-t-[30px] border-t-transparent border-b-[30px] border-b-transparent border-l-[60px] border-l-indigo-300/40" />
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2 w-0 h-0 border-t-[30px] border-t-transparent border-b-[30px] border-b-transparent border-r-[60px] border-r-indigo-300/40" />
+                    </div>
+                  </div>
 
-                  return (
-                    <div
-                      key={std.id}
-                      title={std.name}
-                      className="absolute w-12 flex flex-col items-center z-10 select-none cursor-pointer"
-                      style={{
-                        left: `${x}px`,
-                        top: `${y}px`,
-                        transform: `rotate(${-spinAngle}deg)`, // Bù trừ góc xoay động của cha
-                        transition: isSpinning ? 'transform 3.8s cubic-bezier(0.15, 0.9, 0.2, 1)' : 'none',
-                      }}
-                    >
-                      <div className="w-10 h-10 rounded-full border-2 border-white shadow-md overflow-hidden bg-slate-100 shrink-0 hover:scale-110 transition-transform">
+                  {/* Trục tâm nhỏ màu tím đậm (Cũng là nút nhấn để quay) */}
+                  <button
+                    disabled={isSpinning || candidatesList.length === 0}
+                    onClick={startSpin}
+                    className="absolute w-8 h-8 rounded-full bg-indigo-600 border-4 border-white shadow-xs z-20 hover:bg-indigo-700 active:scale-95 transition-all cursor-pointer"
+                    title="Nhấp để quay"
+                  />
+
+                  {/* Ảnh đại diện học sinh chạy dọc chu vi viền ngoài, bù trừ góc xoay động để luôn thẳng đứng */}
+                  {candidatesList.map((std, i) => {
+                    const angle = (i * 360) / candidatesList.length;
+                    const radius = 115; // Bán kính đặt trên bánh xe w-72 (bán kính 144px)
+                    const rad = (angle * Math.PI) / 180;
+                    const x = 144 + radius * Math.cos(rad) - 18; // offset cho avatar w-9 (36px)
+                    const y = 144 + radius * Math.sin(rad) - 18;
+                    
+                    // Tạo viền màu ngẫu nhiên cho từng avatar
+                    const borderColors = ['border-blue-400', 'border-amber-400', 'border-purple-400', 'border-emerald-400', 'border-pink-400'];
+                    const borderColor = borderColors[i % borderColors.length];
+
+                    return (
+                      <div
+                        key={std.id}
+                        title={std.name}
+                        className={`absolute w-9 h-9 rounded-full border-[3px] ${borderColor} shadow-sm overflow-hidden bg-white shrink-0 flex items-center justify-center z-10 hover:scale-110 transition-transform pointer-events-auto`}
+                        style={{
+                          left: `${x}px`,
+                          top: `${y}px`,
+                          transform: `rotate(${-spinAngle}deg)`, // Bù trừ góc xoay động của cha để thẳng đứng
+                          transition: isSpinning ? 'transform 3.8s cubic-bezier(0.15, 0.9, 0.2, 1)' : 'none',
+                        }}
+                      >
                         {std.avatar ? (
                           <img src={std.avatar} alt={std.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                         ) : (
-                          <span className="text-[10px] font-bold text-slate-500 uppercase">{std.name.substring(0, 2)}</span>
+                          <span className="text-[9px] font-bold text-slate-500 uppercase">{std.name.substring(0, 2)}</span>
                         )}
                       </div>
-                      <span className="text-[8px] font-black text-slate-700 bg-white/95 border border-slate-200/60 px-1 py-0.2 rounded-md shadow-3xs max-w-full truncate block mt-0.5 leading-tight">
-                        {shortName}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
 
-              {/* Nút quay tròn giữa vòng quay (Tâm trục) */}
-              <button
-                disabled={isSpinning || candidatesList.length === 0}
-                onClick={startSpin}
-                className="absolute z-20 w-16 h-16 rounded-full bg-slate-900 text-white font-bold text-xs shadow-lg hover:scale-105 transition-transform flex items-center justify-center cursor-pointer border-4 border-white disabled:bg-slate-300 disabled:cursor-not-allowed"
-              >
-                {isSpinning ? 'QUAY...' : 'QUAY'}
-              </button>
+                {/* Chân đế đỡ hình thang tĩnh ở dưới (Không xoay) */}
+                <div className="flex flex-col items-center select-none w-full -mt-1.5 relative">
+                  {/* Thanh nối dọc */}
+                  <div className="w-3.5 h-6 bg-slate-300 border-x border-slate-400/85" />
+                  {/* Khối đế hình thang ngược */}
+                  <div
+                    className="w-28 h-9 bg-slate-200 border border-slate-300 rounded-b-xl relative flex items-center justify-center shadow-xs overflow-hidden" 
+                    style={{ clipPath: 'polygon(15% 0%, 85% 0%, 100% 100%, 0% 100%)' }}
+                  >
+                    <div className="absolute inset-0 bg-linear-to-b from-slate-100 to-slate-300/80" />
+                  </div>
+                  {/* Hộp nối nhỏ bên phải chân đế */}
+                  <div className="absolute bottom-0 right-16 w-8 h-4 bg-slate-100 border border-slate-300 rounded-xs shadow-3xs" />
+                </div>
+              </div>
 
               {/* Winner Announcement Overlay TO VÀ NỔI BẬT GIỮA MÀN HÌNH QUAY */}
               {winner && !isSpinning && (
