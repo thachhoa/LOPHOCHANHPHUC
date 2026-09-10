@@ -16,9 +16,7 @@ import {
   FileText,
   CheckCircle,
 } from 'lucide-react';
-import { useClassroom } from '../context/ClassroomContext';
-import { Classroom } from '../types';
-import { SettingsModal } from './SettingsModal';
+import { downloadStudentTemplate, parseStudentListText } from '../utils/studentImport';
 
 export const Header: React.FC = () => {
   const {
@@ -73,17 +71,7 @@ export const Header: React.FC = () => {
   }, [setIsSettingsOpen]);
 
   const handleDownloadTemplate = () => {
-    const headers = 'Ma hoc sinh,Ho ten,Gio tinh (Nam/Nu),Ngay sinh (YYYY-MM-DD),Ho ten Phu huynh,SDT lien he,So thich,Uoc mo\n';
-    const sample = 'HS-001,Nguyen Minh Anh,Nu,2016-04-12,Nguyen Van Hung,0912345678,Doc sach,Bac si\nHS-002,Tran Bảo Long,Nam,2016-08-20,Tran Dinh Trong,0987654321,Co vua,Ky su';
-    const csvContent = '\uFEFF' + headers + sample;
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'Mau_Danh_Sach_Hoc_Sinh.csv';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadStudentTemplate();
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -99,38 +87,15 @@ export const Header: React.FC = () => {
     reader.onload = (event) => {
       try {
         const text = event.target?.result as string;
-        const lines = text.split(/\r?\n/);
-        const list: any[] = [];
-        
-        for (let i = 1; i < lines.length; i++) {
-          const line = lines[i].trim();
-          if (!line) continue;
-          
-          const columns = line.split(',').map(col => col.replace(/^["']|["']$/g, '').trim());
-          if (columns.length < 2 || !columns[1]) continue;
-          
-          list.push({
-            classId: activeClass.id,
-            studentCode: columns[0] || `HS-${Date.now()}-${i}`,
-            name: columns[1],
-            gender: columns[2]?.toLowerCase() === 'nữ' || columns[2]?.toLowerCase() === 'nu' || columns[2]?.toLowerCase() === 'female' ? 'female' : 'male',
-            birthday: columns[3] || '2016-01-01',
-            avatar: '',
-            parentName: columns[4] || '',
-            parentPhone: columns[5] || '',
-            hobby: columns[6] || '',
-            dream: columns[7] || '',
-          });
-        }
-
-        if (list.length === 0) {
-          setImportError('Không tìm thấy học sinh hợp lệ trong file!');
+        const res = parseStudentListText(text, activeClass.id);
+        if (!res.success) {
+          setImportError(res.message || 'Lỗi đọc tệp!');
         } else {
-          setParsedStudentsList(list);
-          setParsedStudentsCount(list.length);
+          setParsedStudentsList(res.students);
+          setParsedStudentsCount(res.students.length);
         }
       } catch (err: any) {
-        setImportError('Lỗi đọc file: ' + err.message);
+        setImportError('Lỗi xử lý tệp: ' + err.message);
       }
     };
     reader.readAsText(file, 'UTF-8');
@@ -140,26 +105,8 @@ export const Header: React.FC = () => {
     e.preventDefault();
     if (parsedStudentsList.length === 0) return;
     
-    const AVATARS_MALE = [
-      'https://images.unsplash.com/photo-1544717305-2782549b5136?w=200&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1595454223600-91fbdd77e584?w=200&auto=format&fit=crop&q=80',
-    ];
-    const AVATARS_FEMALE = [
-      'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80',
-    ];
-    
-    const finalizedList = parsedStudentsList.map((std, idx) => {
-      const avatarUrl = std.gender === 'female' 
-        ? AVATARS_FEMALE[idx % AVATARS_FEMALE.length] 
-        : AVATARS_MALE[idx % AVATARS_MALE.length];
-      return {
-        ...std,
-        avatar: avatarUrl,
-      };
-    });
-    
-    importStudentsBulk(finalizedList);
+    // Pass replaceExisting = true to reset current class list
+    importStudentsBulk(parsedStudentsList, true);
     setIsAddStudentOpen(false);
     
     setAddStudentMode('manual');
@@ -448,8 +395,8 @@ export const Header: React.FC = () => {
               <form onSubmit={handleImportSubmit} className="space-y-4">
                 {/* Instructions and Download Template Link */}
                 <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/60 space-y-2">
-                  <p className="text-[11px] text-slate-500 leading-relaxed">
-                    Tải danh sách học sinh cả lớp nhanh chóng bằng tệp CSV. Hãy điền danh sách theo tệp mẫu bên dưới để đảm bảo cấu trúc dữ liệu chính xác.
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    Tải mẫu danh sách chuẩn gồm 5 cột: <span className="font-bold text-emerald-800">Họ tên học sinh, Ngày sinh, Giới tính, Họ tên phụ huynh, Số điện thoại</span>.
                   </p>
                   <button
                     type="button"
@@ -457,38 +404,42 @@ export const Header: React.FC = () => {
                     className="px-3 py-1.5 bg-white border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/20 text-slate-700 hover:text-emerald-800 rounded-lg text-[10px] font-bold shadow-3xs flex items-center gap-1.5 transition-colors cursor-pointer"
                   >
                     <Download className="w-3.5 h-3.5 text-emerald-600" />
-                    Tải tệp mẫu (.csv)
+                    Tải tệp mẫu chuẩn (.csv)
                   </button>
                 </div>
 
                 {/* Upload Input Area */}
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Chọn tệp danh sách học sinh</label>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Chọn tệp danh sách học sinh (CSV / Excel)</label>
                   <div className="flex items-center gap-2">
                     <label className="flex-1 flex items-center justify-between px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-600 cursor-pointer hover:border-slate-400">
                       <span className="truncate">{importFileName || 'Chưa chọn tệp...'}</span>
                       <Upload className="w-4 h-4 text-slate-400 shrink-0 ml-2" />
                       <input
                         type="file"
-                        accept=".csv"
+                        accept=".csv,.txt"
                         onChange={handleFileUpload}
                         className="hidden"
                       />
                     </label>
                   </div>
                   {importError && (
-                    <p className="text-[10px] text-rose-600 font-medium leading-relaxed">{importError}</p>
+                    <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-[11px] text-rose-700 font-medium">
+                      ⚠️ {importError}
+                    </div>
                   )}
                 </div>
 
-                {/* Preview Status */}
+                {/* Preview Status & Reset Alert */}
                 {parsedStudentsCount > 0 && (
-                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-[11px] text-emerald-800 flex items-start gap-2">
-                    <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                    <div className="space-y-0.5">
-                      <p className="font-bold">Đọc dữ liệu thành công!</p>
-                      <p>Tìm thấy **{parsedStudentsCount} học sinh** sẵn sàng nhập lớp.</p>
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-[11px] text-emerald-900 space-y-1.5">
+                    <div className="flex items-center gap-2 font-bold text-emerald-800">
+                      <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>Đọc dữ liệu thành công! (Tìm thấy {parsedStudentsCount} học sinh)</span>
                     </div>
+                    <p className="text-[10.5px] text-slate-600 leading-normal bg-white/70 p-2 rounded-lg border border-emerald-100">
+                      ⚡ <strong>Lưu ý:</strong> Tất cả danh sách học sinh cũ sẽ được <span className="text-rose-600 font-bold">làm mới (reset)</span> và thay thế hoàn toàn bằng <strong>{parsedStudentsCount} học sinh</strong> trong danh sách này.
+                    </p>
                   </div>
                 )}
 
