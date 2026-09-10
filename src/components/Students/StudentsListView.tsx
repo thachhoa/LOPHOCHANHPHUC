@@ -14,10 +14,8 @@ import {
   Award,
   MoreVertical,
 } from 'lucide-react';
-import { useClassroom } from '../../context/ClassroomContext';
+import { useClassroom, downloadStudentTemplate } from '../../context/ClassroomContext';
 import { Student } from '../../types';
-
-import { downloadStudentTemplate } from '../../utils/studentImport';
 
 export const StudentsListView: React.FC = () => {
   const {
