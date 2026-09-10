@@ -16,7 +16,7 @@ import {
   FileText,
   CheckCircle,
 } from 'lucide-react';
-import { useClassroom, downloadStudentTemplate, parseStudentListText } from '../context/ClassroomContext';
+import { useClassroom, downloadStudentTemplate, parseStudentFileUniversal } from '../context/ClassroomContext';
 import { SettingsModal } from './SettingsModal';
 
 export const Header: React.FC = () => {
@@ -48,6 +48,7 @@ export const Header: React.FC = () => {
   const [parsedStudentsCount, setParsedStudentsCount] = useState(0);
   const [parsedStudentsList, setParsedStudentsList] = useState<any[]>([]);
   const [importError, setImportError] = useState('');
+  const [isParsingFile, setIsParsingFile] = useState(false);
 
   // Quick add student form state
   const [newStudentName, setNewStudentName] = useState('');
@@ -75,7 +76,7 @@ export const Header: React.FC = () => {
     downloadStudentTemplate();
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     
@@ -83,23 +84,21 @@ export const Header: React.FC = () => {
     setImportError('');
     setParsedStudentsList([]);
     setParsedStudentsCount(0);
+    setIsParsingFile(true);
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const text = event.target?.result as string;
-        const res = parseStudentListText(text, activeClass.id);
-        if (!res.success) {
-          setImportError(res.message || 'Lỗi đọc tệp!');
-        } else {
-          setParsedStudentsList(res.students);
-          setParsedStudentsCount(res.students.length);
-        }
-      } catch (err: any) {
-        setImportError('Lỗi xử lý tệp: ' + err.message);
+    try {
+      const res = await parseStudentFileUniversal(file, activeClass.id);
+      if (!res.success) {
+        setImportError(res.message || 'Lỗi đọc tệp!');
+      } else {
+        setParsedStudentsList(res.students);
+        setParsedStudentsCount(res.students.length);
       }
-    };
-    reader.readAsText(file, 'UTF-8');
+    } catch (err: any) {
+      setImportError('Lỗi đọc tệp: ' + (err.message || 'Không thể xử lý định dạng tệp này.'));
+    } finally {
+      setIsParsingFile(false);
+    }
   };
 
   const handleImportSubmit = (e: React.FormEvent) => {
@@ -306,7 +305,7 @@ export const Header: React.FC = () => {
                     : 'border-transparent text-slate-400 hover:text-slate-600'
                 }`}
               >
-                Nhập từ file (CSV/Excel)
+                Nhập từ file (Word / Excel / CSV)
               </button>
             </div>
 
@@ -397,7 +396,10 @@ export const Header: React.FC = () => {
                 {/* Instructions and Download Template Link */}
                 <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/60 space-y-2">
                   <p className="text-[11px] text-slate-600 leading-relaxed">
-                    Tải mẫu danh sách chuẩn gồm 5 cột: <span className="font-bold text-emerald-800">Họ tên học sinh, Ngày sinh, Giới tính, Họ tên phụ huynh, Số điện thoại</span>.
+                    Hệ thống hỗ trợ nhập trực tiếp từ file <span className="font-bold text-emerald-700">Word (.docx, .doc)</span> hoặc <span className="font-bold text-blue-700">Excel (.xlsx, .xls, .csv)</span>.
+                  </p>
+                  <p className="text-[10.5px] text-slate-500">
+                    File cần chứa các thông tin: <strong>Họ tên học sinh, Ngày sinh, Giới tính, Họ tên phụ huynh, Số điện thoại</strong>.
                   </p>
                   <button
                     type="button"
@@ -411,19 +413,24 @@ export const Header: React.FC = () => {
 
                 {/* Upload Input Area */}
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Chọn tệp danh sách học sinh (CSV / Excel)</label>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    Chọn tệp Word (.docx) hoặc Excel (.xlsx, .csv)
+                  </label>
                   <div className="flex items-center gap-2">
-                    <label className="flex-1 flex items-center justify-between px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-600 cursor-pointer hover:border-slate-400">
-                      <span className="truncate">{importFileName || 'Chưa chọn tệp...'}</span>
+                    <label className="flex-1 flex items-center justify-between px-3 py-2.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-600 cursor-pointer hover:border-slate-400">
+                      <span className="truncate">{importFileName || 'Bấm để chọn tệp Word hoặc Excel...'}</span>
                       <Upload className="w-4 h-4 text-slate-400 shrink-0 ml-2" />
                       <input
                         type="file"
-                        accept=".csv,.txt"
+                        accept=".docx,.doc,.xlsx,.xls,.csv,.txt"
                         onChange={handleFileUpload}
                         className="hidden"
                       />
                     </label>
                   </div>
+                  {isParsingFile && (
+                    <p className="text-[10px] text-emerald-600 font-bold animate-pulse">⏳ Đang đọc và phân tích dữ liệu tệp Word/Excel...</p>
+                  )}
                   {importError && (
                     <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-[11px] text-rose-700 font-medium">
                       ⚠️ {importError}
