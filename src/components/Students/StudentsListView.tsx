@@ -17,6 +17,8 @@ import {
 import { useClassroom } from '../../context/ClassroomContext';
 import { Student } from '../../types';
 
+import { downloadStudentTemplate } from '../../utils/studentImport';
+
 export const StudentsListView: React.FC = () => {
   const {
     currentStudents,
@@ -47,23 +49,25 @@ export const StudentsListView: React.FC = () => {
     const rows = currentStudents.map((s, idx) => [
       idx + 1,
       s.studentCode,
-      `"${s.name}"`,
+      `"${s.name.replace(/"/g, '""')}"`,
       s.gender === 'male' ? 'Nam' : 'Nữ',
       s.birthday,
       s.stars,
-      `"${s.parentName}"`,
+      `"${s.parentName.replace(/"/g, '""')}"`,
       s.parentPhone,
-      `"${s.notes || ''}"`,
+      `"${(s.notes || '').replace(/"/g, '""')}"`,
     ]);
 
-    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const encodedUri = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `DanhSachHocSinh_${activeClass.code}.csv`);
+    link.setAttribute('download', `DanhSachHocSinh_${activeClass.code || 'Class'}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(encodedUri);
   };
 
   const handleOpenCrop = (std: Student, e: React.MouseEvent) => {
@@ -92,14 +96,25 @@ export const StudentsListView: React.FC = () => {
           </p>
         </div>
 
-        <button
-          id="btn-export-students-csv"
-          onClick={exportStudentsCSV}
-          className="px-3.5 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold shadow-2xs flex items-center gap-1.5 transition-colors self-start sm:self-auto"
-        >
-          <Download className="w-4 h-4 text-slate-400" />
-          Xuất Danh Sách Excel/CSV
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            id="btn-download-template-csv"
+            onClick={downloadStudentTemplate}
+            className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold shadow-2xs flex items-center gap-1.5 transition-colors cursor-pointer"
+          >
+            <Download className="w-4 h-4 text-emerald-600" />
+            Tải File Mẫu Nhập Danh Sách (5 Cột)
+          </button>
+
+          <button
+            id="btn-export-students-csv"
+            onClick={exportStudentsCSV}
+            className="px-3.5 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold shadow-2xs flex items-center gap-1.5 transition-colors cursor-pointer"
+          >
+            <Download className="w-4 h-4 text-slate-400" />
+            Xuất Danh Sách Excel/CSV
+          </button>
+        </div>
       </div>
 
       {/* Filter and View Mode Switcher */}
