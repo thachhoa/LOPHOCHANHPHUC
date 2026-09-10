@@ -451,24 +451,61 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setStudents(prev => [...prev, newStudent]);
   };
 
-  const importStudentsBulk = (newStdsData: Omit<Student, 'id' | 'stars' | 'badges' | 'seatRow' | 'seatCol'>[]) => {
+  const importStudentsBulk = (
+    newStdsData: Omit<Student, 'id' | 'stars' | 'badges' | 'seatRow' | 'seatCol'>[],
+    replaceExisting: boolean = true
+  ) => {
+    const AVATARS_MALE = [
+      'https://images.unsplash.com/photo-1544717305-2782549b5136?w=200&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1595454223600-91fbdd77e584?w=200&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1543332164-6e82f355badc?w=200&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?w=200&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=200&auto=format&fit=crop&q=80',
+    ];
+    const AVATARS_FEMALE = [
+      'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=200&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&auto=format&fit=crop&q=80',
+    ];
+
     setStudents(prev => {
-      const currentClassStudents = prev.filter(s => s.classId === activeClassId);
-      const currentCount = currentClassStudents.length;
-      
+      // If replaceExisting, remove old students of this active class
+      const otherClassStudents = replaceExisting
+        ? prev.filter(s => s.classId !== activeClassId)
+        : prev;
+
+      let maleIdx = 0;
+      let femaleIdx = 0;
+
       const newStudents: Student[] = newStdsData.map((std, idx) => {
-        const nextRow = Math.floor((currentCount + idx) / activeClass.cols);
-        const nextCol = (currentCount + idx) % activeClass.cols;
+        const nextRow = Math.floor(idx / activeClass.cols);
+        const nextCol = idx % activeClass.cols;
+
+        let avatar = std.avatar;
+        if (!avatar) {
+          if (std.gender === 'female') {
+            avatar = AVATARS_FEMALE[femaleIdx % AVATARS_FEMALE.length];
+            femaleIdx++;
+          } else {
+            avatar = AVATARS_MALE[maleIdx % AVATARS_MALE.length];
+            maleIdx++;
+          }
+        }
+
         return {
           ...std,
-          id: `std-${Date.now()}-${idx}`,
-          stars: 10,
-          badges: ['Học sinh mới'],
+          id: `std-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
+          avatar,
+          stars: std.stars ?? 10,
+          badges: std.badges || ['Học sinh mới'],
           seatRow: nextRow < activeClass.rows ? nextRow : 0,
           seatCol: nextCol < activeClass.cols ? nextCol : 0,
         };
       });
-      return [...prev, ...newStudents];
+
+      return [...otherClassStudents, ...newStudents];
     });
   };
 
