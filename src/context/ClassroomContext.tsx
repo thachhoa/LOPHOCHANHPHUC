@@ -1068,20 +1068,41 @@ function convertRowsToStudents(rows: string[][], activeClassId: string): ParsedI
   let isHeaderRow = false;
 
   normalizedCols.forEach((col, idx) => {
-    if (col.includes('ho ten') || col.includes('ten hoc sinh') || col.includes('ten hs') || col === 'ten' || col === 'ho va ten') {
-      nameIdx = idx;
+    // 1. Check for Phone Number (highest priority for phone keywords)
+    if (col.includes('sdt') || col.includes('so dien thoai') || col.includes('phone') || col.includes('dien thoai') || col.includes('lien he')) {
+      phoneIdx = idx;
       isHeaderRow = true;
-    } else if (col.includes('ngay sinh') || col.includes('namsinh') || col === 'birthday' || col.includes('sinh nhat')) {
-      bdayIdx = idx;
-      isHeaderRow = true;
-    } else if (col.includes('gioi tinh') || col === 'gender' || col.includes('nam/nu')) {
-      genderIdx = idx;
-      isHeaderRow = true;
-    } else if (col.includes('phu huynh') || col.includes('ho ten phu huynh') || col === 'parent' || col.includes('cha me')) {
+    }
+    // 2. Check for Parent Name (contains parent keywords: phu huynh, cha me, parent)
+    else if (col.includes('phu huynh') || col.includes('cha me') || col.includes('parent') || col === 'ph' || col.includes('ph:')) {
       parentIdx = idx;
       isHeaderRow = true;
-    } else if (col.includes('sdt') || col.includes('so dien thoai') || col.includes('phone') || col.includes('dien thoai')) {
-      phoneIdx = idx;
+    }
+    // 3. Check for Student Code / STT (ignore as name)
+    else if (col.includes('ma hs') || col.includes('ma hoc sinh') || col.includes('mã hs') || col.includes('code') || col === 'stt' || col === 'stt.') {
+      isHeaderRow = true;
+    }
+    // 4. Check for Student Name (must not contain parent keywords)
+    else if (
+      col.includes('hoc sinh') ||
+      col.includes('ho ten') ||
+      col.includes('ho va ten') ||
+      col.includes('ten hs') ||
+      col === 'ten' ||
+      col === 'name' ||
+      col.includes('student')
+    ) {
+      nameIdx = idx;
+      isHeaderRow = true;
+    }
+    // 5. Check for Birthday
+    else if (col.includes('ngay sinh') || col.includes('namsinh') || col.includes('birthday') || col.includes('sinh nhat') || col.includes('nam sinh')) {
+      bdayIdx = idx;
+      isHeaderRow = true;
+    }
+    // 6. Check for Gender
+    else if (col.includes('gioi tinh') || col.includes('gender') || col.includes('nam/nu') || col.includes('nam nu')) {
+      genderIdx = idx;
       isHeaderRow = true;
     }
   });
@@ -1090,8 +1111,8 @@ function convertRowsToStudents(rows: string[][], activeClassId: string): ParsedI
   if (isHeaderRow) {
     startIndex = 1;
   } else {
-    const isFirstColIndex = /^\d+$/.test(firstLineCols[0]) || /^HS/i.test(firstLineCols[0]);
-    if (isFirstColIndex && firstLineCols.length >= 6) {
+    const isFirstColCode = /^\d+$/.test(firstLineCols[0]) || /^HS/i.test(firstLineCols[0]);
+    if (isFirstColCode && firstLineCols.length >= 6) {
       nameIdx = 1;
       bdayIdx = 3;
       genderIdx = 2;
@@ -1112,13 +1133,13 @@ function convertRowsToStudents(rows: string[][], activeClassId: string): ParsedI
     const cols = rows[i];
     if (!cols || cols.length === 0) continue;
 
-    const rawName = nameIdx >= 0 && cols[nameIdx] ? cols[nameIdx] : (cols[0] || '');
-    if (!rawName || /^(stt|mã|mã hs|họ và tên|họ tên)$/i.test(rawName)) continue;
+    const rawName = nameIdx >= 0 && cols[nameIdx] !== undefined ? cols[nameIdx] : (cols[0] || '');
+    if (!rawName || /^(stt|mã|mã hs|họ và tên|họ tên|stt\.)$/i.test(rawName)) continue;
 
-    const rawBday = bdayIdx >= 0 && cols[bdayIdx] ? cols[bdayIdx] : (cols[1] || '');
-    const rawGender = genderIdx >= 0 && cols[genderIdx] ? cols[genderIdx] : (cols[2] || '');
-    const rawParent = parentIdx >= 0 && cols[parentIdx] ? cols[parentIdx] : (cols[3] || '');
-    const rawPhone = phoneIdx >= 0 && cols[phoneIdx] ? cols[phoneIdx] : (cols[4] || '');
+    const rawBday = bdayIdx >= 0 && cols[bdayIdx] !== undefined ? cols[bdayIdx] : (cols[1] || '');
+    const rawGender = genderIdx >= 0 && cols[genderIdx] !== undefined ? cols[genderIdx] : (cols[2] || '');
+    const rawParent = parentIdx >= 0 && cols[parentIdx] !== undefined ? cols[parentIdx] : (cols[3] || '');
+    const rawPhone = phoneIdx >= 0 && cols[phoneIdx] !== undefined ? cols[phoneIdx] : (cols[4] || '');
 
     const genderNormalized = normalizeHeader(rawGender);
     const gender: 'male' | 'female' = genderNormalized.includes('nu') || genderNormalized === 'female' || genderNormalized === 'f'
