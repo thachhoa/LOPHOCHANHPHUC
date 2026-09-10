@@ -907,39 +907,157 @@ export interface ParsedImportResult {
   students: Omit<Student, 'id' | 'stars' | 'badges' | 'seatRow' | 'seatCol'>[];
 }
 
-export function parseStudentListText(text: string, activeClassId: string): ParsedImportResult {
-  if (!text || !text.trim()) {
-    return { success: false, message: 'Tệp danh sách trống, vui lòng chọn tệp có chứa dữ liệu học sinh!', students: [] };
+/**
+ * Minimal native ZIP reader for decompressed .xlsx and .docx files in modern browsers
+ */
+async function unzipEntries(buffer: ArrayBuffer): Promise<Record<string, string>> {
+  const bytes = new Uint8Array(buffer);
+  const result: Record<string, string> = {};
+  let pos = 0;
+
+  while (pos < bytes.length - 30) {
+    // Check for local file header signature 0x04034b50 ('PK\x03\x04')
+    if (bytes[pos] === 0x50 && bytes[pos + 1] === 0x4b && bytes[pos + 2] === 0x03 && bytes[pos + 3] === 0x04) {
+      const compression = bytes[pos + 8] | (bytes[pos + 9] << 8);
+      const compressedSize = bytes[pos + 18] | (bytes[pos + 19] << 8) | (bytes[pos + 20] << 16) | (bytes[pos + 21] << 24);
+      const fileNameLen = bytes[pos + 26] | (bytes[pos + 27] << 8);
+      const extraLen = bytes[pos + 28] | (bytes[pos + 29] << 8);
+
+      const nameBytes = bytes.subarray(pos + 30, pos + 30 + fileNameLen);
+      const fileName = new TextDecoder('utf-8').decode(nameBytes);
+
+      const dataStart = pos + 30 + fileNameLen + extraLen;
+      const dataEnd = dataStart + compressedSize;
+
+      if (dataEnd <= bytes.length) {
+        const compressedData = bytes.subarray(dataStart, dataEnd);
+
+        if (compression === 0) { // Uncompressed
+          result[fileName] = new TextDecoder('utf-8').decode(compressedData);
+        } else if (compression === 8 && typeof DecompressionStream !== 'undefined') { // Deflated
+          try {
+            const ds = new DecompressionStream('deflate-raw');
+            const writer = ds.writable.getWriter();
+            writer.write(compressedData);
+            writer.close();
+            const response = new Response(ds.readable);
+            const text = await response.text();
+            result[fileName] = text;
+          } catch {
+            // Ignore single entry decompression error
+          }
+        }
+      }
+      pos = dataEnd > pos ? dataEnd : pos + 1;
+    } else {
+      pos++;
+    }
   }
 
-  let cleanText = text.replace(/^\uFEFF/, '').trim();
+  return result;
+}
 
-  if (cleanText.startsWith('PK\x03\x04') || cleanText.startsWith('D0-CF-11-E0')) {
-    return {
-      success: false,
-      message: 'Tệp bạn chọn là tệp Excel nhị phân (.xlsx / .xls). Vui lòng lưu tệp Excel dưới dạng CSV (UTF-8) hoặc tải tệp mẫu CSV của hệ thống!',
-      students: [],
-    };
+function parseXlsxEntries(entries: Record<string, string>): string[][] {
+  const sharedStrings: string[] = [];
+
+  const sharedXml = entries['xl/sharedStrings.xml'];
+  if (sharedXml) {
+    const doc = new DOMParser().parseFromString(sharedXml, 'text/xml');
+    const siElements = doc.querySelectorAll('si');
+    siElements.forEach((si) => {
+      let t = '';
+      si.querySelectorAll('t').forEach(tNode => { t += tNode.textContent || ''; });
+      sharedStrings.push(t.trim());
+    });
   }
 
-  const rawLines = cleanText.split(/\r?\n/).filter(line => line.trim().length > 0);
-  if (rawLines.length === 0) {
-    return { success: false, message: 'Tệp danh sách không có dữ liệu!', students: [] };
+  let sheetXml = entries['xl/worksheets/sheet1.xml'];
+  if (!sheetXml) {
+    const sheetKeys = Object.keys(entries).filter(k => k.startsWith('xl/worksheets/'));
+    if (sheetKeys.length > 0) sheetXml = entries[sheetKeys[0]];
   }
 
-  const firstLine = rawLines[0];
-  const commaCount = (firstLine.match(/,/g) || []).length;
-  const semiCount = (firstLine.match(/;/g) || []).length;
-  const tabCount = (firstLine.match(/\t/g) || []).length;
+  if (!sheetXml) return [];
 
-  let delimiter = ',';
-  if (semiCount > commaCount && semiCount >= tabCount) {
-    delimiter = ';';
-  } else if (tabCount > commaCount && tabCount > semiCount) {
-    delimiter = '\t';
+  const doc = new DOMParser().parseFromString(sheetXml, 'text/xml');
+  const rowsXml = doc.querySelectorAll('row');
+  const resultRows: string[][] = [];
+
+  rowsXml.forEach((rowNode) => {
+    const cells = rowNode.querySelectorAll('c');
+    const rowValues: string[] = [];
+
+    cells.forEach((cellNode) => {
+      const type = cellNode.getAttribute('t');
+      const valNode = cellNode.querySelector('v');
+      let val = valNode ? valNode.textContent || '' : '';
+
+      if (type === 's' && val !== '') {
+        const idx = parseInt(val, 10);
+        val = sharedStrings[idx] || val;
+      } else if (type === 'inlineStr') {
+        const isTNode = cellNode.querySelector('is t');
+        if (isTNode) val = isTNode.textContent || '';
+      }
+
+      rowValues.push(val.trim());
+    });
+
+    if (rowValues.some(v => v.length > 0)) {
+      resultRows.push(rowValues);
+    }
+  });
+
+  return resultRows;
+}
+
+function parseDocxXml(xmlString: string): string[][] {
+  const doc = new DOMParser().parseFromString(xmlString, 'text/xml');
+  const rows: string[][] = [];
+
+  const tables = doc.querySelectorAll('w\\:tbl, tbl');
+  if (tables.length > 0) {
+    tables.forEach((tableNode) => {
+      const trList = tableNode.querySelectorAll('w\\:tr, tr');
+      trList.forEach((trNode) => {
+        const tcList = trNode.querySelectorAll('w\\:tc, tc');
+        const rowCells: string[] = [];
+        tcList.forEach((tcNode) => {
+          let cellText = '';
+          const tList = tcNode.querySelectorAll('w\\:t, t');
+          tList.forEach((tNode) => { cellText += tNode.textContent || ''; });
+          rowCells.push(cellText.trim());
+        });
+        if (rowCells.some(c => c.length > 0)) {
+          rows.push(rowCells);
+        }
+      });
+    });
   }
 
-  const firstLineCols = parseCSVLine(firstLine, delimiter).map(c => c.replace(/^["']|["']$/g, '').trim());
+  if (rows.length === 0) {
+    const pList = doc.querySelectorAll('w\\:p, p');
+    pList.forEach((pNode) => {
+      let pText = '';
+      const tList = pNode.querySelectorAll('w\\:t, t');
+      tList.forEach((tNode) => { pText += tNode.textContent || ''; });
+      const cleanP = pText.trim();
+      if (cleanP) {
+        const cols = cleanP.split(/[,;\t|]/).map(c => c.trim());
+        rows.push(cols);
+      }
+    });
+  }
+
+  return rows;
+}
+
+function convertRowsToStudents(rows: string[][], activeClassId: string): ParsedImportResult {
+  if (!rows || rows.length === 0) {
+    return { success: false, message: 'Tệp không chứa dữ liệu dòng hợp lệ nào!', students: [] };
+  }
+
+  const firstLineCols = rows[0];
   const normalizedCols = firstLineCols.map(normalizeHeader);
 
   let nameIdx = -1;
@@ -990,12 +1108,9 @@ export function parseStudentListText(text: string, activeClassId: string): Parse
 
   const parsedStudents: Omit<Student, 'id' | 'stars' | 'badges' | 'seatRow' | 'seatCol'>[] = [];
 
-  for (let i = startIndex; i < rawLines.length; i++) {
-    const line = rawLines[i].trim();
-    if (!line) continue;
-
-    const cols = parseCSVLine(line, delimiter).map(c => c.replace(/^["']|["']$/g, '').trim());
-    if (cols.length === 0) continue;
+  for (let i = startIndex; i < rows.length; i++) {
+    const cols = rows[i];
+    if (!cols || cols.length === 0) continue;
 
     const rawName = nameIdx >= 0 && cols[nameIdx] ? cols[nameIdx] : (cols[0] || '');
     if (!rawName || /^(stt|mã|mã hs|họ và tên|họ tên)$/i.test(rawName)) continue;
@@ -1031,7 +1146,7 @@ export function parseStudentListText(text: string, activeClassId: string): Parse
   if (parsedStudents.length === 0) {
     return {
       success: false,
-      message: 'Không tìm thấy tên học sinh hợp lệ nào trong tệp! Vui lòng kiểm tra lại định dạng tệp.',
+      message: 'Không tìm thấy thông tin học sinh hợp lệ nào trong danh sách!',
       students: [],
     };
   }
@@ -1040,4 +1155,76 @@ export function parseStudentListText(text: string, activeClassId: string): Parse
     success: true,
     students: parsedStudents,
   };
+}
+
+export function parseStudentListText(text: string, activeClassId: string): ParsedImportResult {
+  if (!text || !text.trim()) {
+    return { success: false, message: 'Tệp danh sách trống, vui lòng chọn tệp có chứa dữ liệu học sinh!', students: [] };
+  }
+
+  let cleanText = text.replace(/^\uFEFF/, '').trim();
+  const rawLines = cleanText.split(/\r?\n/).filter(line => line.trim().length > 0);
+  if (rawLines.length === 0) {
+    return { success: false, message: 'Tệp danh sách không có dữ liệu!', students: [] };
+  }
+
+  const firstLine = rawLines[0];
+  const commaCount = (firstLine.match(/,/g) || []).length;
+  const semiCount = (firstLine.match(/;/g) || []).length;
+  const tabCount = (firstLine.match(/\t/g) || []).length;
+
+  let delimiter = ',';
+  if (semiCount > commaCount && semiCount >= tabCount) {
+    delimiter = ';';
+  } else if (tabCount > commaCount && tabCount > semiCount) {
+    delimiter = '\t';
+  }
+
+  const rows = rawLines.map(line => parseCSVLine(line, delimiter));
+  return convertRowsToStudents(rows, activeClassId);
+}
+
+/**
+ * Master Universal File Parser supporting .xlsx, .xls, .docx, .doc, .csv, .txt files
+ */
+export async function parseStudentFileUniversal(file: File, activeClassId: string): Promise<ParsedImportResult> {
+  const fileName = file.name.toLowerCase();
+
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+
+    // Check if file is ZIP archive (.xlsx or .docx)
+    if (fileName.endsWith('.xlsx') || fileName.endsWith('.docx') || fileName.endsWith('.zip')) {
+      const entries = await unzipEntries(arrayBuffer);
+
+      // Check for Excel sheet
+      if (entries['xl/worksheets/sheet1.xml'] || entries['xl/workbook.xml']) {
+        const rows = parseXlsxEntries(entries);
+        return convertRowsToStudents(rows, activeClassId);
+      }
+
+      // Check for Word document
+      if (entries['word/document.xml']) {
+        const rows = parseDocxXml(entries['word/document.xml']);
+        return convertRowsToStudents(rows, activeClassId);
+      }
+    }
+
+    // Try reading as raw text (CSV, TSV, TXT, or fallback)
+    const textDecoder = new TextDecoder('utf-8');
+    const rawText = textDecoder.decode(arrayBuffer);
+    return parseStudentListText(rawText, activeClassId);
+  } catch (err: any) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = (e.target?.result as string) || '';
+        resolve(parseStudentListText(text, activeClassId));
+      };
+      reader.onerror = () => {
+        resolve({ success: false, message: 'Lỗi mở tệp: ' + err.message, students: [] });
+      };
+      reader.readAsText(file, 'UTF-8');
+    });
+  }
 }
