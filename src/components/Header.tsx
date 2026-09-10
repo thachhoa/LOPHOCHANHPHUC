@@ -16,6 +16,8 @@ import {
   FileText,
   CheckCircle,
 } from 'lucide-react';
+import { useClassroom } from '../context/ClassroomContext';
+import { SettingsModal } from './SettingsModal';
 import { downloadStudentTemplate, parseStudentListText } from '../utils/studentImport';
 
 export const Header: React.FC = () => {
