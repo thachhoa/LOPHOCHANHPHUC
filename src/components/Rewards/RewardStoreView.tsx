@@ -290,78 +290,108 @@ export const RewardStoreView: React.FC = () => {
 
           {activeTab === 'history' && (
             <div className="bg-white rounded-3xl border border-slate-100 shadow-xs overflow-hidden">
-              <div className="p-4 bg-slate-50/70 border-b border-slate-100 font-bold text-xs text-slate-600 uppercase tracking-wider">
-                Lịch sử quy đổi phần quà của lớp ({redemptions.length})
-              </div>
+              {(() => {
+                const classRedemptions = redemptions
+                  .filter(r => r.classId === activeClass.id)
+                  .map(rd => {
+                    const student = currentStudents.find(s => s.id === rd.studentId);
+                    return { ...rd, studentName: student ? student.name : rd.studentName };
+                  });
 
-              <div className="divide-y divide-slate-100">
-                {redemptions.map(rd => (
-                  <div key={rd.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors text-xs">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center shrink-0">
-                        <Gift className="w-4 h-4 text-amber-500" />
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-slate-800">
-                          {rd.studentName} <span className="font-normal text-slate-400">đã đổi</span> {rd.itemName}
-                        </h4>
-                        <p className="text-slate-500 text-[10px]">Mã giao dịch: {rd.id.substring(0, 8)}</p>
-                      </div>
+                return (
+                  <>
+                    <div className="p-4 bg-slate-50/70 border-b border-slate-100 font-bold text-xs text-slate-600 uppercase tracking-wider">
+                      Lịch sử quy đổi phần quà của lớp ({classRedemptions.length})
                     </div>
 
-                    <div className="flex items-center gap-3">
-                      <span className="font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg flex items-center gap-1">
-                        <Star className="w-3 h-3 fill-amber-500" />
-                        -{rd.cost} sao
-                      </span>
-                      <span className="text-slate-400 text-[11px]">
-                        {new Date(rd.timestamp).toLocaleString('vi-VN')}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                    <div className="divide-y divide-slate-100">
+                      {classRedemptions.map(rd => (
+                        <div key={rd.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors text-xs">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center shrink-0">
+                              <Gift className="w-4 h-4 text-amber-500" />
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-slate-800">
+                                {rd.studentName} <span className="font-normal text-slate-400">đã đổi</span> {rd.itemName}
+                              </h4>
+                              <p className="text-slate-500 text-[10px]">Mã giao dịch: {rd.id.substring(0, 8)}</p>
+                            </div>
+                          </div>
 
-                {redemptions.length === 0 && (
-                  <div className="p-8 text-center text-slate-400 text-xs">Chưa có lịch sử đổi quà nào.</div>
-                )}
-              </div>
+                          <div className="flex items-center gap-3">
+                            <span className="font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg flex items-center gap-1">
+                              <Star className="w-3 h-3 fill-amber-500" />
+                              -{rd.cost} sao
+                            </span>
+                            <span className="text-slate-400 text-[11px]">
+                              {new Date(rd.timestamp).toLocaleString('vi-VN')}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+
+                      {classRedemptions.length === 0 && (
+                        <div className="p-8 text-center text-slate-400 text-xs">Chưa có lịch sử đổi quà nào.</div>
+                      )}
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           )}
 
           {activeTab === 'transactions' && (
             <div className="bg-white rounded-3xl border border-slate-100 shadow-xs overflow-hidden">
-              <div className="p-4 bg-slate-50/70 border-b border-slate-100 font-bold text-xs text-slate-600 uppercase tracking-wider">
-                Nhật ký thưởng & Trừ sao ({pointTransactions.length})
-              </div>
+              {(() => {
+                const classTransactions = pointTransactions
+                  .filter(tx => tx.classId === activeClass.id)
+                  .map(tx => {
+                    const student = currentStudents.find(s => s.id === tx.studentId);
+                    return { ...tx, studentName: student ? student.name : tx.studentName };
+                  });
 
-              <div className="divide-y divide-slate-100">
-                {pointTransactions.map(tx => (
-                  <div key={tx.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors text-xs">
-                    <div className="flex items-center gap-3">
-                      <span
-                        className={`w-7 h-7 rounded-full flex items-center justify-center font-bold ${
-                          tx.type === 'positive' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
-                        }`}
-                      >
-                        {tx.type === 'positive' ? '+' : '-'}
-                      </span>
-                      <div>
-                        <h4 className="font-bold text-slate-800">{tx.studentName}</h4>
-                        <p className="text-slate-500">{tx.reason}</p>
-                      </div>
+                return (
+                  <>
+                    <div className="p-4 bg-slate-50/70 border-b border-slate-100 font-bold text-xs text-slate-600 uppercase tracking-wider">
+                      Nhật ký thưởng & Trừ sao ({classTransactions.length})
                     </div>
 
-                    <div className="flex items-center gap-3">
-                      <span className={`font-bold ${tx.type === 'positive' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                        {tx.amount > 0 ? `+${tx.amount}` : tx.amount} sao
-                      </span>
-                      <span className="text-slate-400 text-[11px]">
-                        {new Date(tx.timestamp).toLocaleString('vi-VN')}
-                      </span>
+                    <div className="divide-y divide-slate-100">
+                      {classTransactions.map(tx => (
+                        <div key={tx.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors text-xs">
+                          <div className="flex items-center gap-3">
+                            <span
+                              className={`w-7 h-7 rounded-full flex items-center justify-center font-bold ${
+                                tx.type === 'positive' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+                              }`}
+                            >
+                              {tx.type === 'positive' ? '+' : '-'}
+                            </span>
+                            <div>
+                              <h4 className="font-bold text-slate-800">{tx.studentName}</h4>
+                              <p className="text-slate-500">{tx.reason}</p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3">
+                            <span className={`font-bold ${tx.type === 'positive' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                              {tx.amount > 0 ? `+${tx.amount}` : tx.amount} sao
+                            </span>
+                            <span className="text-slate-400 text-[11px]">
+                              {new Date(tx.timestamp).toLocaleString('vi-VN')}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+
+                      {classTransactions.length === 0 && (
+                        <div className="p-8 text-center text-slate-400 text-xs">Chưa có nhật ký rèn luyện nào.</div>
+                      )}
                     </div>
-                  </div>
-                ))}
-              </div>
+                  </>
+                );
+              })()}
             </div>
           )}
         </div>
