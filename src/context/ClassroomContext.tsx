@@ -494,19 +494,38 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           }
         }
 
-        return {
-          ...std,
-          id: `std-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
-          avatar,
-          stars: std.stars ?? 10,
-          badges: std.badges || ['Học sinh mới'],
-          seatRow: nextRow < activeClass.rows ? nextRow : 0,
-          seatCol: nextCol < activeClass.cols ? nextCol : 0,
-        };
-      });
-
       return [...otherClassStudents, ...newStudents];
     });
+
+    if (replaceExisting) {
+      // Generate initial activity records with ACTUAL names of the newly imported students
+      const sampleReasons = [
+        'Phát biểu xây dựng bài sôi nổi môn Tiếng Việt',
+        'Đạt điểm tốt bài kiểm tra môn Toán',
+        'Tăng điểm rèn luyện tích cực trong giờ học',
+        'Giúp đỡ bạn cùng bàn giữ gìn vệ sinh lớp',
+        'Tích cực hăng hái tham gia hoạt động nhóm',
+      ];
+
+      const newTxList: PointTransaction[] = newStudents.slice(0, 5).map((std, idx) => ({
+        id: `pt-${Date.now()}-${idx}`,
+        studentId: std.id,
+        studentName: std.name,
+        classId: activeClassId,
+        amount: 5 + (idx % 2 === 0 ? 5 : 0),
+        reason: sampleReasons[idx % sampleReasons.length],
+        icon: 'Star',
+        type: 'positive',
+        timestamp: Date.now() - (idx + 1) * 3600000,
+      }));
+
+      setPointTransactions(prev => [
+        ...newTxList,
+        ...prev.filter(t => t.classId !== activeClassId),
+      ]);
+
+      setRedemptions(prev => prev.filter(r => r.classId !== activeClassId));
+    }
   };
 
   const updateStudent = (std: Student) => {
