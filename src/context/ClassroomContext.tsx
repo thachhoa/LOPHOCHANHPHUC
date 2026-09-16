@@ -65,6 +65,8 @@ interface ClassroomContextType {
   redemptions: RewardRedemption[];
   pointTransactions: PointTransaction[];
   awardPoints: (studentId: string, amount: number, reason: string, icon?: string) => void;
+  updatePointTransaction: (updatedTx: PointTransaction) => void;
+  deletePointTransaction: (txId: string) => void;
   redeemReward: (studentId: string, rewardId: string) => { success: boolean; message: string };
   addRewardItem: (item: Omit<RewardItem, 'id'>) => void;
   updateRewardItem: (item: RewardItem) => void;
@@ -653,6 +655,51 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setPointTransactions(prev => [tx, ...prev]);
   };
 
+  const deletePointTransaction = (txId: string) => {
+    const targetTx = pointTransactions.find(t => t.id === txId);
+    if (targetTx) {
+      setStudents(prev =>
+        prev.map(s => {
+          if (s.id === targetTx.studentId) {
+            const newStars = Math.max(0, s.stars - targetTx.amount);
+            return { ...s, stars: newStars };
+          }
+          return s;
+        })
+      );
+    }
+    setPointTransactions(prev => prev.filter(t => t.id !== txId));
+  };
+
+  const updatePointTransaction = (updatedTx: PointTransaction) => {
+    const oldTx = pointTransactions.find(t => t.id === updatedTx.id);
+    const targetStudent = students.find(s => s.id === updatedTx.studentId);
+    
+    if (oldTx) {
+      const amountDiff = updatedTx.amount - oldTx.amount;
+      setStudents(prev =>
+        prev.map(s => {
+          if (s.id === updatedTx.studentId) {
+            const newStars = Math.max(0, s.stars + amountDiff);
+            return { ...s, stars: newStars };
+          }
+          return s;
+        })
+      );
+      setPointTransactions(prev =>
+        prev.map(t => (t.id === updatedTx.id ? { ...updatedTx, studentName: targetStudent ? targetStudent.name : updatedTx.studentName } : t))
+      );
+    } else {
+      if (targetStudent) {
+        const newStars = Math.max(0, targetStudent.stars + updatedTx.amount);
+        setStudents(prev =>
+          prev.map(s => (s.id === updatedTx.studentId ? { ...s, stars: newStars } : s))
+        );
+      }
+      setPointTransactions(prev => [updatedTx, ...prev]);
+    }
+  };
+
   const redeemReward = (studentId: string, rewardId: string): { success: boolean; message: string } => {
     const student = students.find(s => s.id === studentId);
     const reward = rewards.find(r => r.id === rewardId);
@@ -803,6 +850,8 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         redemptions,
         pointTransactions,
         awardPoints,
+        updatePointTransaction,
+        deletePointTransaction,
         redeemReward,
         addRewardItem,
         updateRewardItem,
