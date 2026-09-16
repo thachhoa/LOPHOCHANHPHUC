@@ -470,30 +470,39 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&auto=format&fit=crop&q=80',
     ];
 
+    let maleIdx = 0;
+    let femaleIdx = 0;
+
+    const newStudents: Student[] = newStdsData.map((std, idx) => {
+      const nextRow = Math.floor(idx / activeClass.cols);
+      const nextCol = idx % activeClass.cols;
+
+      let avatar = std.avatar;
+      if (!avatar) {
+        if (std.gender === 'female') {
+          avatar = AVATARS_FEMALE[femaleIdx % AVATARS_FEMALE.length];
+          femaleIdx++;
+        } else {
+          avatar = AVATARS_MALE[maleIdx % AVATARS_MALE.length];
+          maleIdx++;
+        }
+      }
+
+      return {
+        ...std,
+        id: `std-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
+        avatar,
+        stars: std.stars ?? 10,
+        badges: std.badges || ['Học sinh mới'],
+        seatRow: nextRow < activeClass.rows ? nextRow : 0,
+        seatCol: nextCol < activeClass.cols ? nextCol : 0,
+      };
+    });
+
     setStudents(prev => {
-      // If replaceExisting, remove old students of this active class
       const otherClassStudents = replaceExisting
         ? prev.filter(s => s.classId !== activeClassId)
         : prev;
-
-      let maleIdx = 0;
-      let femaleIdx = 0;
-
-      const newStudents: Student[] = newStdsData.map((std, idx) => {
-        const nextRow = Math.floor(idx / activeClass.cols);
-        const nextCol = idx % activeClass.cols;
-
-        let avatar = std.avatar;
-        if (!avatar) {
-          if (std.gender === 'female') {
-            avatar = AVATARS_FEMALE[femaleIdx % AVATARS_FEMALE.length];
-            femaleIdx++;
-          } else {
-            avatar = AVATARS_MALE[maleIdx % AVATARS_MALE.length];
-            maleIdx++;
-          }
-        }
-
       return [...otherClassStudents, ...newStudents];
     });
 
