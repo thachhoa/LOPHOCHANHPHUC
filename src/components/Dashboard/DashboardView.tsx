@@ -1,9 +1,15 @@
-import React from 'react';
-import { BarChart3, TrendingUp, Users, Calendar, Award, Sparkles, CheckCircle2, AlertCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { BarChart3, TrendingUp, Users, Calendar, Award, Sparkles, CheckCircle2, AlertCircle, Plus, X } from 'lucide-react';
 import { useClassroom } from '../../context/ClassroomContext';
 
 export const DashboardView: React.FC = () => {
-  const { currentStudents, attendanceRecords, pointTransactions, activeClass } = useClassroom();
+  const { currentStudents, attendanceRecords, pointTransactions, activeClass, awardPoints } = useClassroom();
+
+  const [isAddRecordModalOpen, setIsAddRecordModalOpen] = useState(false);
+  const [selectedStudentId, setSelectedStudentId] = useState<string>('');
+  const [recordAmount, setRecordAmount] = useState<number>(5);
+  const [recordReason, setRecordReason] = useState<string>('');
+  const [recordIcon, setRecordIcon] = useState<string>('Star');
 
   // 1. Calculate General Metrics
   const totalStudents = currentStudents.length;
@@ -410,11 +416,29 @@ export const DashboardView: React.FC = () => {
             </div>
           </div>
 
-          {/* Card: Classroom Fun Facts / Logs */}
+          {/* Card: Classroom Activity Logs */}
           <div className="p-5 bg-white border border-slate-200/70 rounded-3xl shadow-2xs space-y-4">
-            <h4 className="font-bold text-slate-800 text-sm">Ghi Nhận Hoạt Động Gần Nhất</h4>
+            <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
+              <div>
+                <h4 className="font-bold text-slate-800 text-sm">Ghi Nhận Hoạt Động Gần Nhất</h4>
+                <p className="text-[10px] text-slate-400">Nhật ký rèn luyện và khen thưởng của lớp</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (currentStudents.length > 0 && !selectedStudentId) {
+                    setSelectedStudentId(currentStudents[0].id);
+                  }
+                  setIsAddRecordModalOpen(true);
+                }}
+                className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition-all shadow-xs cursor-pointer shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Ghi nhận mới</span>
+              </button>
+            </div>
             
-            <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+            <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
               {(() => {
                 // Filter transactions so they ONLY belong to students in currentStudents
                 const validTransactions = pointTransactions.filter(
@@ -462,19 +486,19 @@ export const DashboardView: React.FC = () => {
                   );
                 }
 
-                return displayList.slice(0, 4).map((tx) => (
-                  <div key={tx.id} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/50 text-[11px] flex gap-2.5 items-start">
+                return displayList.slice(0, 8).map((tx) => (
+                  <div key={tx.id} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/50 text-[11px] flex gap-2.5 items-start hover:border-slate-300 transition-colors">
                     <span className="text-base shrink-0">
                       {tx.icon === 'Star' ? '⭐' : tx.icon === 'Gift' ? '🎁' : '📝'}
                     </span>
-                    <div className="space-y-0.5">
-                      <p className="font-bold text-slate-800">
+                    <div className="space-y-0.5 min-w-0 flex-1">
+                      <p className="font-bold text-slate-800 truncate">
                         {tx.studentName}{' '}
                         <span className={tx.amount >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
                           {tx.amount >= 0 ? `+${tx.amount}` : tx.amount} sao
                         </span>
                       </p>
-                      <p className="text-slate-500 leading-normal">{tx.reason}</p>
+                      <p className="text-slate-500 leading-normal break-words">{tx.reason}</p>
                       <p className="text-[9px] text-slate-400">
                         {new Date(tx.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                       </p>
@@ -488,6 +512,151 @@ export const DashboardView: React.FC = () => {
         </div>
 
       </div>
+
+      {/* Modal: Ghi Nhận Hoạt Động Mới Cho Học Sinh */}
+      {isAddRecordModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-md w-full p-6 space-y-4">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-base">
+                  📝
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-800 text-sm">Ghi Nhận Hoạt Động Học Sinh</h3>
+                  <p className="text-[10px] text-slate-400">Tuyên dương hoặc ghi nhận rèn luyện</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAddRecordModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 cursor-pointer text-lg p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!selectedStudentId || !recordReason.trim()) return;
+                awardPoints(selectedStudentId, recordAmount, recordReason.trim(), recordIcon);
+                setIsAddRecordModalOpen(false);
+                setRecordReason('');
+              }}
+              className="space-y-4"
+            >
+              {/* Select Student */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Chọn học sinh ghi nhận *
+                </label>
+                <select
+                  value={selectedStudentId}
+                  onChange={(e) => setSelectedStudentId(e.target.value)}
+                  required
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                >
+                  {currentStudents.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.studentCode || 'HS'}) — ⭐ {s.stars} sao
+                    </option>
+                  ))}
+                  {currentStudents.length === 0 && (
+                    <option value="" disabled>Chưa có học sinh trong lớp</option>
+                  )}
+                </select>
+              </div>
+
+              {/* Reward Amount Presets */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Mức sao ghi nhận *
+                </label>
+                <div className="grid grid-cols-4 gap-2">
+                  {[
+                    { label: '+5 sao', val: 5 },
+                    { label: '+10 sao', val: 10 },
+                    { label: '+2 sao', val: 2 },
+                    { label: '-5 sao', val: -5 },
+                  ].map((preset) => (
+                    <button
+                      key={preset.val}
+                      type="button"
+                      onClick={() => setRecordAmount(preset.val)}
+                      className={`py-2 px-2 text-xs font-extrabold rounded-xl border transition-all cursor-pointer ${
+                        recordAmount === preset.val
+                          ? preset.val >= 0
+                            ? 'bg-emerald-500 text-white border-emerald-500 shadow-xs scale-105'
+                            : 'bg-rose-500 text-white border-rose-500 shadow-xs scale-105'
+                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Custom Reason Note */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Nội dung / Ghi chú hoạt động *
+                </label>
+                <textarea
+                  rows={3}
+                  required
+                  value={recordReason}
+                  onChange={(e) => setRecordReason(e.target.value)}
+                  placeholder="Ghi chú nội dung rèn luyện của học sinh (VD: Tích cực phát biểu xây dựng bài sôi nổi môn Tiếng Việt...)"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 text-slate-800 placeholder:text-slate-400 font-medium leading-relaxed"
+                />
+
+                {/* Quick Templates Chips */}
+                <div className="mt-2 space-y-1">
+                  <span className="text-[10px] text-slate-400 font-bold block">Gợi ý nhanh nội dung:</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      'Phát biểu xây dựng bài sôi nổi',
+                      'Đạt điểm 10 bài kiểm tra',
+                      'Giúp đỡ bạn giữ gìn vệ sinh lớp',
+                      'Tự giác hoàn thành bài tập về nhà',
+                      'Tích cực làm việc nhóm',
+                    ].map((tpl) => (
+                      <button
+                        key={tpl}
+                        type="button"
+                        onClick={() => setRecordReason(tpl)}
+                        className="px-2 py-1 bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 border border-slate-200/80 rounded-lg text-[10px] font-semibold text-slate-600 transition-colors cursor-pointer"
+                      >
+                        + {tpl}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Actions */}
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAddRecordModalOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+                >
+                  Huỷ
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:scale-95 rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <span>Lưu Ghi Nhận</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
