@@ -292,9 +292,15 @@ export const RewardStoreView: React.FC = () => {
             <div className="bg-white rounded-3xl border border-slate-100 shadow-xs overflow-hidden">
               {(() => {
                 const classRedemptions = redemptions
-                  .filter(r => r.classId === activeClass.id)
+                  .filter(
+                    r =>
+                      r.classId === activeClass.id &&
+                      currentStudents.some(s => s.id === r.studentId || s.name === r.studentName)
+                  )
                   .map(rd => {
-                    const student = currentStudents.find(s => s.id === rd.studentId);
+                    const student = currentStudents.find(
+                      s => s.id === rd.studentId || s.name === rd.studentName
+                    );
                     return { ...rd, studentName: student ? student.name : rd.studentName };
                   });
 
@@ -345,9 +351,15 @@ export const RewardStoreView: React.FC = () => {
             <div className="bg-white rounded-3xl border border-slate-100 shadow-xs overflow-hidden">
               {(() => {
                 const classTransactions = pointTransactions
-                  .filter(tx => tx.classId === activeClass.id)
+                  .filter(
+                    tx =>
+                      tx.classId === activeClass.id &&
+                      currentStudents.some(s => s.id === tx.studentId || s.name === tx.studentName)
+                  )
                   .map(tx => {
-                    const student = currentStudents.find(s => s.id === tx.studentId);
+                    const student = currentStudents.find(
+                      s => s.id === tx.studentId || s.name === tx.studentName
+                    );
                     return { ...tx, studentName: student ? student.name : tx.studentName };
                   });
 
