@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { BarChart3, TrendingUp, Users, Calendar, Award, Sparkles, CheckCircle2, AlertCircle, Plus, X } from 'lucide-react';
+import { BarChart3, TrendingUp, Users, Calendar, Award, Sparkles, CheckCircle2, AlertCircle, Plus, X, Edit2, Trash2 } from 'lucide-react';
 import { useClassroom } from '../../context/ClassroomContext';
 
 export const DashboardView: React.FC = () => {
-  const { currentStudents, attendanceRecords, pointTransactions, activeClass, awardPoints } = useClassroom();
+  const { currentStudents, attendanceRecords, pointTransactions, activeClass, awardPoints, updatePointTransaction, deletePointTransaction } = useClassroom();
 
   const [isAddRecordModalOpen, setIsAddRecordModalOpen] = useState(false);
+  const [editingTx, setEditingTx] = useState<any | null>(null);
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
   const [recordAmount, setRecordAmount] = useState<number>(5);
   const [recordReason, setRecordReason] = useState<string>('');
@@ -487,17 +488,48 @@ export const DashboardView: React.FC = () => {
                 }
 
                 return displayList.slice(0, 8).map((tx) => (
-                  <div key={tx.id} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/50 text-[11px] flex gap-2.5 items-start hover:border-slate-300 transition-colors">
+                  <div key={tx.id} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/50 text-[11px] flex gap-2.5 items-start hover:border-slate-300 transition-colors group">
                     <span className="text-base shrink-0">
                       {tx.icon === 'Star' ? '⭐' : tx.icon === 'Gift' ? '🎁' : '📝'}
                     </span>
                     <div className="space-y-0.5 min-w-0 flex-1">
-                      <p className="font-bold text-slate-800 truncate">
-                        {tx.studentName}{' '}
-                        <span className={tx.amount >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
-                          {tx.amount >= 0 ? `+${tx.amount}` : tx.amount} sao
-                        </span>
-                      </p>
+                      <div className="flex items-center justify-between gap-1">
+                        <p className="font-bold text-slate-800 truncate">
+                          {tx.studentName}{' '}
+                          <span className={tx.amount >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
+                            {tx.amount >= 0 ? `+${tx.amount}` : tx.amount} sao
+                          </span>
+                        </p>
+
+                        {/* Edit & Delete Action Buttons */}
+                        <div className="flex items-center gap-1 opacity-90 sm:opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                          <button
+                            type="button"
+                            title="Chỉnh sửa ghi nhận"
+                            onClick={() => {
+                              setEditingTx(tx);
+                              setSelectedStudentId(tx.studentId);
+                              setRecordAmount(tx.amount);
+                              setRecordReason(tx.reason);
+                            }}
+                            className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            title="Xoá ghi nhận này"
+                            onClick={() => {
+                              if (window.confirm(`Bạn có chắc chắn muốn xoá ghi nhận "${tx.reason}" của em ${tx.studentName}?`)) {
+                                deletePointTransaction(tx.id);
+                              }
+                            }}
+                            className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
                       <p className="text-slate-500 leading-normal break-words">{tx.reason}</p>
                       <p className="text-[9px] text-slate-400">
                         {new Date(tx.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
@@ -651,6 +683,133 @@ export const DashboardView: React.FC = () => {
                   className="px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:scale-95 rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
                 >
                   <span>Lưu Ghi Nhận</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* Modal: Chỉnh Sửa Ghi Nhận Hoạt Động */}
+      {editingTx && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-md w-full p-6 space-y-4">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-base">
+                  ✏️
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-800 text-sm">Chỉnh Sửa Ghi Nhận</h3>
+                  <p className="text-[10px] text-slate-400">Cập nhật nội dung hoặc số sao rèn luyện</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingTx(null)}
+                className="text-slate-400 hover:text-slate-600 cursor-pointer text-lg p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!recordReason.trim()) return;
+
+                const targetStudent = currentStudents.find((s) => s.id === selectedStudentId);
+
+                updatePointTransaction({
+                  ...editingTx,
+                  studentId: selectedStudentId,
+                  studentName: targetStudent ? targetStudent.name : editingTx.studentName,
+                  amount: recordAmount,
+                  reason: recordReason.trim(),
+                  type: recordAmount >= 0 ? 'positive' : 'negative',
+                });
+                setEditingTx(null);
+              }}
+              className="space-y-4"
+            >
+              {/* Select Student */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Chọn học sinh *
+                </label>
+                <select
+                  value={selectedStudentId}
+                  onChange={(e) => setSelectedStudentId(e.target.value)}
+                  required
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                >
+                  {currentStudents.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.studentCode || 'HS'}) — ⭐ {s.stars} sao
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Reward Amount Presets */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Mức sao ghi nhận *
+                </label>
+                <div className="grid grid-cols-4 gap-2">
+                  {[
+                    { label: '+5 sao', val: 5 },
+                    { label: '+10 sao', val: 10 },
+                    { label: '+2 sao', val: 2 },
+                    { label: '-5 sao', val: -5 },
+                  ].map((preset) => (
+                    <button
+                      key={preset.val}
+                      type="button"
+                      onClick={() => setRecordAmount(preset.val)}
+                      className={`py-2 px-2 text-xs font-extrabold rounded-xl border transition-all cursor-pointer ${
+                        recordAmount === preset.val
+                          ? preset.val >= 0
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-xs scale-105'
+                            : 'bg-rose-500 text-white border-rose-500 shadow-xs scale-105'
+                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Custom Reason Note */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Nội dung / Ghi chú hoạt động *
+                </label>
+                <textarea
+                  rows={3}
+                  required
+                  value={recordReason}
+                  onChange={(e) => setRecordReason(e.target.value)}
+                  placeholder="Ghi chú nội dung rèn luyện của học sinh..."
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 text-slate-800 font-medium leading-relaxed"
+                />
+              </div>
+
+              {/* Modal Actions */}
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingTx(null)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+                >
+                  Huỷ
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 active:scale-95 rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <span>Cập Nhật Ghi Nhận</span>
                 </button>
               </div>
             </form>
