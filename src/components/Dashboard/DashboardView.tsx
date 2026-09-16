@@ -89,9 +89,14 @@ export const DashboardView: React.FC = () => {
     d.setDate(d.getDate() - idx);
     const dateStr = d.toISOString().split('T')[0];
     
-    // Sum positive points on this day
+    // Sum positive points on this day for students currently in active class
     const dayPoints = pointTransactions
-      .filter((t) => t.classId === activeClass.id && t.type === 'positive')
+      .filter(
+        (t) =>
+          t.classId === activeClass.id &&
+          t.type === 'positive' &&
+          currentStudents.some((s) => s.id === t.studentId || s.name === t.studentName)
+      )
       .filter((t) => {
         const txDate = new Date(t.timestamp).toISOString().split('T')[0];
         return txDate === dateStr;
@@ -411,30 +416,38 @@ export const DashboardView: React.FC = () => {
             
             <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
               {(() => {
-                const classTransactions = pointTransactions.filter((tx) => tx.classId === activeClass.id);
+                // Filter transactions so they ONLY belong to students in currentStudents
+                const validTransactions = pointTransactions.filter(
+                  (tx) =>
+                    tx.classId === activeClass.id &&
+                    currentStudents.some((s) => s.id === tx.studentId || s.name === tx.studentName)
+                );
+
+                const sampleReasons = [
+                  'Phát biểu xây dựng bài sôi nổi môn Tiếng Việt',
+                  'Đạt điểm 10 kiểm tra Toán giữa kỳ',
+                  'Tích cực rèn luyện và giữ gìn vệ sinh lớp học',
+                  'Tự giác hoàn thành tốt bài tập về nhà',
+                ];
                 
                 const displayList = (
-                  classTransactions.length > 0
-                    ? classTransactions
+                  validTransactions.length > 0
+                    ? validTransactions
                     : currentStudents.slice(0, 4).map((s, idx) => ({
                         id: `tx-default-${s.id}`,
                         studentId: s.id,
                         studentName: s.name,
                         classId: activeClass.id,
                         amount: 5 + (idx % 2 === 0 ? 5 : 0),
-                        reason: idx === 0 
-                          ? 'Phát biểu xây dựng bài sôi nổi môn Tiếng Việt'
-                          : idx === 1
-                          ? 'Đạt điểm 10 kiểm tra Toán giữa kỳ'
-                          : idx === 2
-                          ? 'Tích cực rèn luyện và giữ gìn vệ sinh lớp học'
-                          : 'Tự giác hoàn thành tốt bài tập về nhà',
+                        reason: sampleReasons[idx % sampleReasons.length],
                         icon: 'Star',
                         type: 'positive' as const,
                         timestamp: Date.now() - (idx + 1) * 3600000,
                       }))
                 ).map((tx) => {
-                  const student = currentStudents.find((s) => s.id === tx.studentId);
+                  const student = currentStudents.find(
+                    (s) => s.id === tx.studentId || s.name === tx.studentName
+                  );
                   return {
                     ...tx,
                     studentName: student ? student.name : tx.studentName,
