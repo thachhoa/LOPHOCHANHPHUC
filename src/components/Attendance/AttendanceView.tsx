@@ -104,7 +104,7 @@ export const AttendanceView: React.FC = () => {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `DiemDanh_${activeClass.code}_${selectedDate}.csv`);
+    link.setAttribute('download', `DiemDanh_${activeClass?.code || 'Lop'}_${selectedDate}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -121,7 +121,7 @@ export const AttendanceView: React.FC = () => {
               Điểm Danh Thông Minh
             </h2>
             <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-full">
-              {activeClass.name}
+              {activeClass?.name || 'Lớp học'}
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
