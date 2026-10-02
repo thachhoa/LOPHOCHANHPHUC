@@ -442,10 +442,11 @@ export const DashboardView: React.FC = () => {
             <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
               {(() => {
                 // Filter transactions so they ONLY belong to students in currentStudents
-                const validTransactions = pointTransactions.filter(
+                const validTransactions = (pointTransactions || []).filter(
                   (tx) =>
-                    tx.classId === activeClass.id &&
-                    currentStudents.some((s) => s.id === tx.studentId || s.name === tx.studentName)
+                    tx &&
+                    tx.classId === activeClass?.id &&
+                    (currentStudents || []).some((s) => s.id === tx.studentId || s.name === tx.studentName)
                 );
 
                 const sampleReasons = [
@@ -458,11 +459,11 @@ export const DashboardView: React.FC = () => {
                 const displayList = (
                   validTransactions.length > 0
                     ? validTransactions
-                    : currentStudents.slice(0, 4).map((s, idx) => ({
+                    : (currentStudents || []).slice(0, 4).map((s, idx) => ({
                         id: `tx-default-${s.id}`,
                         studentId: s.id,
                         studentName: s.name,
-                        classId: activeClass.id,
+                        classId: activeClass?.id || 'class-3a',
                         amount: 5 + (idx % 2 === 0 ? 5 : 0),
                         reason: sampleReasons[idx % sampleReasons.length],
                         icon: 'Star',
