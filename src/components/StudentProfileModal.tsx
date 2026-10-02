@@ -407,11 +407,13 @@ export const StudentProfileModal: React.FC = () => {
                 {/* Attendance Monthly Summary & Absent Dates Section */}
                 {(() => {
                   const monthPrefix = selectedDate ? selectedDate.substring(0, 7) : new Date().toISOString().substring(0, 7);
-                  const [yearStr, monthStr] = monthPrefix.split('-');
+                  const dateParts = monthPrefix.split('-');
+                  const yearStr = dateParts[0] || '2026';
+                  const monthStr = dateParts[1] || '10';
 
                   // Filter attendance records for active class in the selected month where attendance was marked for this student
-                  const monthRecords = attendanceRecords.filter(
-                    r => r.classId === activeClass.id && r.date.startsWith(monthPrefix)
+                  const monthRecords = (attendanceRecords || []).filter(
+                    r => r && r.classId === activeClass?.id && r.date && typeof r.date === 'string' && r.date.startsWith(monthPrefix)
                   );
 
                   let totalMarkedDays = 0;
@@ -423,7 +425,8 @@ export const StudentProfileModal: React.FC = () => {
                   const absentDatesList: { date: string; status: 'excused' | 'unexcused'; notes?: string }[] = [];
 
                   monthRecords.forEach(record => {
-                    const st = record.records[currentData.id];
+                    const recs = record.records || {};
+                    const st = currentData ? recs[currentData.id] : undefined;
                     if (st !== undefined) {
                       totalMarkedDays++;
                       if (st === 'present') {
