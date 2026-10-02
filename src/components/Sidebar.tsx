@@ -42,7 +42,7 @@ export const Sidebar: React.FC = () => {
       {/* Brand Header */}
       <div className="p-5 border-b border-slate-100 flex items-center gap-3">
         <div className="w-10 h-10 rounded-2xl border border-slate-100 flex items-center justify-center shadow-md overflow-hidden bg-emerald-50 shrink-0">
-          {activeClass.avatar ? (
+          {activeClass?.avatar ? (
             <img src={activeClass.avatar} alt="Logo Lớp" className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full bg-linear-to-tr from-emerald-500 via-teal-500 to-cyan-500 flex items-center justify-center text-white">
@@ -52,7 +52,7 @@ export const Sidebar: React.FC = () => {
         </div>
         <div className="min-w-0">
           <h1 className="font-extrabold text-slate-800 text-sm tracking-tight truncate leading-normal">
-            {activeClass.name}
+            {activeClass?.name || 'Lớp Học Hạnh Phúc'}
           </h1>
           <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider truncate">EdTech Classroom</p>
         </div>
@@ -67,7 +67,7 @@ export const Sidebar: React.FC = () => {
               Lớp đang chọn:
             </span>
             <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded-md font-bold">
-              {activeClass.academicYear}
+              {activeClass?.academicYear || '2025 - 2026'}
             </span>
           </div>
 
@@ -89,20 +89,20 @@ export const Sidebar: React.FC = () => {
             </div>
           ) : (
             <div className="w-full bg-white border border-slate-200 text-slate-800 font-bold text-sm rounded-xl px-3.5 py-2 shadow-2xs text-center">
-              {activeClass.name} {activeClass.code ? `(${activeClass.code})` : ''}
+              {activeClass?.name || 'Lớp'} {activeClass?.code ? `(${activeClass.code})` : ''}
             </div>
           )}
 
           <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500 pt-2 border-t border-slate-200/50">
             <div className="flex items-center gap-1.5 min-w-0">
               <div className="w-5 h-5 rounded-full bg-blue-50 border border-slate-100 flex items-center justify-center overflow-hidden shrink-0">
-                {activeClass.teacherAvatar ? (
+                {activeClass?.teacherAvatar ? (
                   <img src={activeClass.teacherAvatar} alt="GVCN" className="w-full h-full object-cover" />
                 ) : (
-                  <span className="text-[8px] font-bold text-blue-600 uppercase">{activeClass.teacherName.substring(0, 2)}</span>
+                  <span className="text-[8px] font-bold text-blue-600 uppercase">{(activeClass?.teacherName || 'GV').substring(0, 2)}</span>
                 )}
               </div>
-              <span className="truncate">GV: <strong className="text-slate-700">{activeClass.teacherName}</strong></span>
+              <span className="truncate">GV: <strong className="text-slate-700">{activeClass?.teacherName || 'Giáo viên'}</strong></span>
             </div>
             <span className="shrink-0 pl-1.5 text-right">Sĩ số: <strong className="text-emerald-700 font-bold">{currentStudents.length}</strong></span>
           </div>
