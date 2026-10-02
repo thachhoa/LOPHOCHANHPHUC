@@ -150,7 +150,15 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Students
   const [students, setStudents] = useState<Student[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.STUDENTS) || localStorage.getItem('lophoc_students_v1');
-    return saved ? JSON.parse(saved) : INITIAL_STUDENTS_3A;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      } catch {
+        /* fallback below */
+      }
+    }
+    return INITIAL_STUDENTS_3A;
   });
 
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
@@ -158,24 +166,56 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Attendance
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceDay[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.ATTENDANCE) || localStorage.getItem('lophoc_attendance_v1');
-    return saved ? JSON.parse(saved) : INITIAL_ATTENDANCE;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      } catch {
+        /* fallback below */
+      }
+    }
+    return INITIAL_ATTENDANCE;
   });
   const [selectedDate, setSelectedDate] = useState<string>(getTodayDateString());
 
   // Rewards
   const [rewards, setRewards] = useState<RewardItem[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.REWARDS) || localStorage.getItem('lophoc_rewards_v1');
-    return saved ? JSON.parse(saved) : INITIAL_REWARDS;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      } catch {
+        /* fallback below */
+      }
+    }
+    return INITIAL_REWARDS;
   });
 
   const [redemptions, setRedemptions] = useState<RewardRedemption[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.REDEMPTIONS) || localStorage.getItem('lophoc_redemptions_v1');
-    return saved ? JSON.parse(saved) : INITIAL_REDEMPTIONS;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      } catch {
+        /* fallback below */
+      }
+    }
+    return INITIAL_REDEMPTIONS;
   });
 
   const [pointTransactions, setPointTransactions] = useState<PointTransaction[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.TRANSACTIONS) || localStorage.getItem('lophoc_transactions_v1');
-    return saved ? JSON.parse(saved) : INITIAL_POINT_TRANSACTIONS;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      } catch {
+        /* fallback below */
+      }
+    }
+    return INITIAL_POINT_TRANSACTIONS;
   });
 
   // Timetable
@@ -184,7 +224,9 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (saved) {
       try {
         const parsed: TimetableSlot[] = JSON.parse(saved);
-        return parsed.map(s => (s.teacher === 'Cô Võ Châu Thanh' ? { ...s, teacher: 'Cô Thạch Hòa' } : s));
+        if (Array.isArray(parsed)) {
+          return parsed.map(s => (s.teacher === 'Cô Võ Châu Thanh' ? { ...s, teacher: 'Cô Thạch Hòa' } : s));
+        }
       } catch {
         return INITIAL_TIMETABLE;
       }
@@ -195,7 +237,14 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Sound & Modals
   const [isSoundMuted, setIsSoundMuted] = useState<boolean>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.SOUND_MUTED);
-    return saved ? JSON.parse(saved) : false;
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return false;
+      }
+    }
+    return false;
   });
 
   const [isQuickPointModalOpen, setIsQuickPointModalOpen] = useState(false);
@@ -340,8 +389,8 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setIsSoundMuted(prev => !prev);
   };
 
-  const activeClass = classes.find(c => c.id === activeClassId) || classes[0] || INITIAL_CLASSES[0];
-  const currentStudents = students.filter(s => s.classId === activeClassId);
+  const activeClass = (classes && classes.length > 0 ? classes.find(c => c.id === activeClassId) || classes[0] : null) || INITIAL_CLASSES[0];
+  const currentStudents = (students || []).filter(s => s.classId === (activeClass?.id || activeClassId));
 
   // Attendance helpers
   const currentAttendanceDay = attendanceRecords.find(
