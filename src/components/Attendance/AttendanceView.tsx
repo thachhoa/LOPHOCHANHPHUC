@@ -31,6 +31,7 @@ export const AttendanceView: React.FC = () => {
     saveAttendanceNotes,
     setSelectedStudent,
     activeClass,
+    attendanceRecords,
   } = useClassroom();
 
   const [searchQuery, setSearchQuery] = useState('');
