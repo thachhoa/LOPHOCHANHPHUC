@@ -1,662 +1,1377 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import {
-  X,
-  Star,
-  Award,
-  Phone,
-  User,
-  Calendar,
-  Heart,
-  Compass,
-  Edit2,
-  Check,
-  Camera,
-  Plus,
-  Trash2,
-  Clock,
-  Sparkles,
-  CalendarCheck,
-  CheckCircle2,
-} from 'lucide-react';
-import { useClassroom } from '../context/ClassroomContext';
-import { Student } from '../types';
+  Classroom,
+  Student,
+  RewardItem,
+  TimetableSlot,
+  RewardRedemption,
+  PointTransaction,
+  AttendanceDay,
+  AttendanceStatus,
+  ActiveTab,
+} from '../types';
+import {
+  INITIAL_CLASSES,
+  INITIAL_STUDENTS_3A,
+  INITIAL_REWARDS,
+  INITIAL_TIMETABLE,
+  INITIAL_REDEMPTIONS,
+  INITIAL_POINT_TRANSACTIONS,
+  INITIAL_ATTENDANCE,
+  getTodayDateString,
+} from '../data/initialData';
+import { soundManager } from '../utils/audio';
 
-export const StudentProfileModal: React.FC = () => {
-  const {
-    selectedStudent,
-    setSelectedStudent,
-    updateStudent,
-    deleteStudent,
-    setCropTargetStudentId,
-    setCropSourceImage,
-    setIsCropModalOpen,
-    pointTransactions,
-    setQuickPointTargetStudent,
-    setIsQuickPointModalOpen,
-    attendanceRecords,
-    selectedDate,
-    activeClass,
-  } = useClassroom();
+interface ClassroomContextType {
+  // Navigation & Class state
+  currentTab: ActiveTab;
+  setCurrentTab: (tab: ActiveTab) => void;
+  classes: Classroom[];
+  activeClassId: string;
+  setActiveClassId: (id: string) => void;
+  activeClass: Classroom;
+  addClass: (cls: Omit<Classroom, 'id'>) => void;
+  updateClass: (cls: Classroom) => void;
 
-  const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState<Student | null>(null);
-  const [newBadgeText, setNewBadgeText] = useState('');
+  // Students
+  students: Student[];
+  currentStudents: Student[];
+  selectedStudent: Student | null;
+  setSelectedStudent: (std: Student | null) => void;
+  addStudent: (std: Omit<Student, 'id' | 'stars' | 'badges' | 'seatRow' | 'seatCol'>) => void;
+  updateStudent: (std: Student) => void;
+  deleteStudent: (studentId: string) => void;
+  updateStudentAvatar: (studentId: string, avatarUrl: string) => void;
+  importStudentsBulk: (newStds: Omit<Student, 'id' | 'stars' | 'badges' | 'seatRow' | 'seatCol'>[]) => void;
 
-  if (!selectedStudent) return null;
+  // Attendance
+  attendanceRecords: AttendanceDay[];
+  selectedDate: string;
+  setSelectedDate: (date: string) => void;
+  todayAttendance: Record<string, AttendanceStatus>;
+  setStudentAttendance: (studentId: string, status: AttendanceStatus) => void;
+  markAllAttendance: (status: AttendanceStatus) => void;
+  saveAttendanceNotes: (notes: string) => void;
+  currentAttendanceNotes: string;
 
-  const currentData = isEditing && formData ? formData : selectedStudent;
+  // Seating
+  updateStudentSeat: (studentId: string, row: number, col: number) => void;
+  swapSeats: (studentId1: string, studentId2: string) => void;
+  randomizeSeats: () => void;
+  clearSeating: () => void;
 
-  const handleStartEdit = () => {
-    setFormData({ ...selectedStudent });
-    setIsEditing(true);
+  // Rewards & Gamification
+  rewards: RewardItem[];
+  redemptions: RewardRedemption[];
+  pointTransactions: PointTransaction[];
+  awardPoints: (studentId: string, amount: number, reason: string, icon?: string) => void;
+  updatePointTransaction: (updatedTx: PointTransaction) => void;
+  deletePointTransaction: (txId: string) => void;
+  redeemReward: (studentId: string, rewardId: string) => { success: boolean; message: string };
+  addRewardItem: (item: Omit<RewardItem, 'id'>) => void;
+  updateRewardItem: (item: RewardItem) => void;
+  deleteRewardItem: (itemId: string) => void;
+
+  // Timetable
+  timetable: TimetableSlot[];
+  addTimetableSlot: (slot: Omit<TimetableSlot, 'id'>) => void;
+  updateTimetableSlot: (slot: TimetableSlot) => void;
+  deleteTimetableSlot: (slotId: string) => void;
+
+  // Sound settings & Modals
+  isSoundMuted: boolean;
+  toggleSound: () => void;
+  isQuickPointModalOpen: boolean;
+  setIsQuickPointModalOpen: (open: boolean) => void;
+  quickPointTargetStudent: Student | null;
+  setQuickPointTargetStudent: (std: Student | null) => void;
+  isLuckyWheelOpen: boolean;
+  setIsLuckyWheelOpen: (open: boolean) => void;
+  isCropModalOpen: boolean;
+  setIsCropModalOpen: (open: boolean) => void;
+  cropTargetStudentId: string | null;
+  setCropTargetStudentId: (id: string | null) => void;
+  cropSourceImage: string | null;
+  setCropSourceImage: (src: string | null) => void;
+  isAIAssistantOpen: boolean;
+  setIsAIAssistantOpen: (open: boolean) => void;
+  isSettingsOpen: boolean;
+  setIsSettingsOpen: (open: boolean) => void;
+  aiApiKey: string;
+  setAiApiKey: (key: string) => void;
+  exportBackupData: () => void;
+  importBackupData: (jsonData: string) => { success: boolean; message: string };
+  activeModel: string;
+  setActiveModel: (model: string) => void;
+}
+
+const ClassroomContext = createContext<ClassroomContextType | null>(null);
+
+const STORAGE_KEYS = {
+  CLASSES: 'lophoc_classes_v2',
+  ACTIVE_CLASS: 'lophoc_active_class_v2',
+  STUDENTS: 'lophoc_students_v2',
+  ATTENDANCE: 'lophoc_attendance_v2',
+  REWARDS: 'lophoc_rewards_v2',
+  REDEMPTIONS: 'lophoc_redemptions_v2',
+  TRANSACTIONS: 'lophoc_transactions_v2',
+  TIMETABLE: 'lophoc_timetable_v2',
+  SOUND_MUTED: 'lophoc_sound_muted_v2',
+};
+
+export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [currentTab, setCurrentTab] = useState<ActiveTab>('attendance');
+
+  // Load classes
+  const [classes, setClasses] = useState<Classroom[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.CLASSES) || localStorage.getItem('lophoc_classes_v1');
+    if (saved) {
+      try {
+        const parsed: Classroom[] = JSON.parse(saved);
+        const filtered = parsed.filter(c => c.id !== 'class-4b');
+        return filtered.map(c => {
+          if (c.id === 'class-3a' && (c.teacherName === 'Cô Võ Châu Thanh' || c.name === 'Lớp 3A - Sao Băng')) {
+            return { ...c, name: 'Lớp Học Hạnh Phúc', teacherName: 'Cô Thạch Hòa', code: 'HP-2025' };
+          }
+          return c;
+        });
+      } catch {
+        return INITIAL_CLASSES;
+      }
+    }
+    return INITIAL_CLASSES;
+  });
+
+  const [activeClassId, setActiveClassId] = useState<string>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.ACTIVE_CLASS) || localStorage.getItem('lophoc_active_class_v1');
+    return saved && saved !== 'class-4b' && INITIAL_CLASSES.some(c => c.id === saved) ? saved : INITIAL_CLASSES[0].id;
+  });
+
+  // Students
+  const [students, setStudents] = useState<Student[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.STUDENTS) || localStorage.getItem('lophoc_students_v1');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      } catch {
+        /* fallback below */
+      }
+    }
+    return INITIAL_STUDENTS_3A;
+  });
+
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+
+  // Attendance
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceDay[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.ATTENDANCE) || localStorage.getItem('lophoc_attendance_v1');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      } catch {
+        /* fallback below */
+      }
+    }
+    return INITIAL_ATTENDANCE;
+  });
+  const [selectedDate, setSelectedDate] = useState<string>(getTodayDateString());
+
+  // Rewards
+  const [rewards, setRewards] = useState<RewardItem[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.REWARDS) || localStorage.getItem('lophoc_rewards_v1');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      } catch {
+        /* fallback below */
+      }
+    }
+    return INITIAL_REWARDS;
+  });
+
+  const [redemptions, setRedemptions] = useState<RewardRedemption[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.REDEMPTIONS) || localStorage.getItem('lophoc_redemptions_v1');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      } catch {
+        /* fallback below */
+      }
+    }
+    return INITIAL_REDEMPTIONS;
+  });
+
+  const [pointTransactions, setPointTransactions] = useState<PointTransaction[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.TRANSACTIONS) || localStorage.getItem('lophoc_transactions_v1');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      } catch {
+        /* fallback below */
+      }
+    }
+    return INITIAL_POINT_TRANSACTIONS;
+  });
+
+  // Timetable
+  const [timetable, setTimetable] = useState<TimetableSlot[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.TIMETABLE) || localStorage.getItem('lophoc_timetable_v1');
+    if (saved) {
+      try {
+        const parsed: TimetableSlot[] = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.map(s => (s.teacher === 'Cô Võ Châu Thanh' ? { ...s, teacher: 'Cô Thạch Hòa' } : s));
+        }
+      } catch {
+        return INITIAL_TIMETABLE;
+      }
+    }
+    return INITIAL_TIMETABLE;
+  });
+
+  // Sound & Modals
+  const [isSoundMuted, setIsSoundMuted] = useState<boolean>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.SOUND_MUTED);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  });
+
+  const [isQuickPointModalOpen, setIsQuickPointModalOpen] = useState(false);
+  const [quickPointTargetStudent, setQuickPointTargetStudent] = useState<Student | null>(null);
+  const [isLuckyWheelOpen, setIsLuckyWheelOpen] = useState(false);
+
+  // Avatar Cropper Modal State
+  const [isCropModalOpen, setIsCropModalOpen] = useState(false);
+  const [cropTargetStudentId, setCropTargetStudentId] = useState<string | null>(null);
+  const [cropSourceImage, setCropSourceImage] = useState<string | null>(null);
+
+  const [isAIAssistantOpen, setIsAIAssistantOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [aiApiKey, setAiApiKey] = useState<string>(() => {
+    return localStorage.getItem('lophoc_ai_api_key') || '';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('lophoc_ai_api_key', aiApiKey);
+  }, [aiApiKey]);
+
+  const [activeModel, setActiveModel] = useState<string>(() => {
+    return localStorage.getItem('lophoc_ai_active_model') || 'gemini-3-flash-preview';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('lophoc_ai_active_model', activeModel);
+  }, [activeModel]);
+
+  const exportBackupData = () => {
+    const backupData = {
+      version: '2.5',
+      timestamp: Date.now(),
+      classes: JSON.parse(localStorage.getItem(STORAGE_KEYS.CLASSES) || '[]'),
+      activeClassId: localStorage.getItem(STORAGE_KEYS.ACTIVE_CLASS) || '',
+      students: JSON.parse(localStorage.getItem(STORAGE_KEYS.STUDENTS) || '[]'),
+      attendance: JSON.parse(localStorage.getItem(STORAGE_KEYS.ATTENDANCE) || '[]'),
+      rewards: JSON.parse(localStorage.getItem(STORAGE_KEYS.REWARDS) || '[]'),
+      redemptions: JSON.parse(localStorage.getItem(STORAGE_KEYS.REDEMPTIONS) || '[]'),
+      transactions: JSON.parse(localStorage.getItem(STORAGE_KEYS.TRANSACTIONS) || '[]'),
+      timetable: JSON.parse(localStorage.getItem(STORAGE_KEYS.TIMETABLE) || '[]'),
+    };
+    
+    const jsonString = JSON.stringify(backupData, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const href = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = href;
+    link.download = `Backup_LopHocHanhPhuc_${getTodayDateString()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(href);
   };
 
-  const handleSaveEdit = () => {
-    if (formData) {
-      updateStudent(formData);
-      setIsEditing(false);
+  const importBackupData = (jsonData: string): { success: boolean; message: string } => {
+    try {
+      const data = JSON.parse(jsonData);
+      if (!data.classes || !data.students) {
+        return { success: false, message: 'File không đúng định dạng sao lưu của ứng dụng!' };
+      }
+      
+      // Update states
+      if (data.classes) {
+        setClasses(data.classes);
+        localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(data.classes));
+      }
+      if (data.activeClassId) {
+        setActiveClassId(data.activeClassId);
+        localStorage.setItem(STORAGE_KEYS.ACTIVE_CLASS, data.activeClassId);
+      }
+      if (data.students) {
+        setStudents(data.students);
+        localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(data.students));
+      }
+      if (data.attendance) {
+        setAttendanceRecords(data.attendance);
+        localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(data.attendance));
+      }
+      if (data.rewards) {
+        setRewards(data.rewards);
+        localStorage.setItem(STORAGE_KEYS.REWARDS, JSON.stringify(data.rewards));
+      }
+      if (data.redemptions) {
+        setRedemptions(data.redemptions);
+        localStorage.setItem(STORAGE_KEYS.REDEMPTIONS, JSON.stringify(data.redemptions));
+      }
+      if (data.transactions) {
+        setPointTransactions(data.transactions);
+        localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(data.transactions));
+      }
+      if (data.timetable) {
+        setTimetable(data.timetable);
+        localStorage.setItem(STORAGE_KEYS.TIMETABLE, JSON.stringify(data.timetable));
+      }
+      
+      return { success: true, message: 'Phục hồi dữ liệu thành công!' };
+    } catch (err) {
+      return { success: false, message: 'Lỗi đọc file JSON: ' + (err as Error).message };
     }
   };
 
-  const handleAddBadge = () => {
-    if (!newBadgeText.trim() || !formData) return;
-    setFormData({
-      ...formData,
-      badges: [...formData.badges, newBadgeText.trim()],
+  // Sync to LocalStorage
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(classes));
+  }, [classes]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.ACTIVE_CLASS, activeClassId);
+  }, [activeClassId]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
+  }, [students]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(attendanceRecords));
+  }, [attendanceRecords]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.REWARDS, JSON.stringify(rewards));
+  }, [rewards]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.REDEMPTIONS, JSON.stringify(redemptions));
+  }, [redemptions]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(pointTransactions));
+  }, [pointTransactions]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.TIMETABLE, JSON.stringify(timetable));
+  }, [timetable]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.SOUND_MUTED, JSON.stringify(isSoundMuted));
+    soundManager.setMuted(isSoundMuted);
+  }, [isSoundMuted]);
+
+  const toggleSound = () => {
+    setIsSoundMuted(prev => !prev);
+  };
+
+  const activeClass = classes.find(c => c.id === activeClassId) || classes[0] || INITIAL_CLASSES[0];
+  const currentStudents = students.filter(s => s.classId === activeClassId);
+
+  // Attendance helpers
+  const currentAttendanceDay = attendanceRecords.find(
+    a => a.classId === activeClassId && a.date === selectedDate
+  );
+
+  const todayAttendance: Record<string, AttendanceStatus> = currentAttendanceDay?.records || {};
+  const currentAttendanceNotes = currentAttendanceDay?.notes || '';
+
+  const setStudentAttendance = (studentId: string, status: AttendanceStatus) => {
+    soundManager.playAttendanceClick();
+    setAttendanceRecords(prev => {
+      const existingIndex = prev.findIndex(a => a.classId === activeClassId && a.date === selectedDate);
+      if (existingIndex >= 0) {
+        const updated = [...prev];
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          records: {
+            ...updated[existingIndex].records,
+            [studentId]: status,
+          },
+          updatedAt: Date.now(),
+        };
+        return updated;
+      } else {
+        const newRecord: AttendanceDay = {
+          id: `att-${Date.now()}`,
+          classId: activeClassId,
+          date: selectedDate,
+          records: { [studentId]: status },
+          updatedAt: Date.now(),
+        };
+        return [...prev, newRecord];
+      }
     });
-    setNewBadgeText('');
   };
 
-  const handleRemoveBadge = (index: number) => {
-    if (!formData) return;
-    const updated = [...formData.badges];
-    updated.splice(index, 1);
-    setFormData({ ...formData, badges: updated });
+  const markAllAttendance = (status: AttendanceStatus) => {
+    soundManager.playAttendanceClick();
+    const newRecords: Record<string, AttendanceStatus> = {};
+    currentStudents.forEach(s => {
+      newRecords[s.id] = status;
+    });
+
+    setAttendanceRecords(prev => {
+      const existingIndex = prev.findIndex(a => a.classId === activeClassId && a.date === selectedDate);
+      if (existingIndex >= 0) {
+        const updated = [...prev];
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          records: newRecords,
+          updatedAt: Date.now(),
+        };
+        return updated;
+      } else {
+        return [
+          ...prev,
+          {
+            id: `att-${Date.now()}`,
+            classId: activeClassId,
+            date: selectedDate,
+            records: newRecords,
+            updatedAt: Date.now(),
+          },
+        ];
+      }
+    });
   };
 
-  const openCropForThisStudent = () => {
-    setCropTargetStudentId(selectedStudent.id);
-    setCropSourceImage(selectedStudent.avatar);
-    setIsCropModalOpen(true);
+  const saveAttendanceNotes = (notes: string) => {
+    setAttendanceRecords(prev => {
+      const existingIndex = prev.findIndex(a => a.classId === activeClassId && a.date === selectedDate);
+      if (existingIndex >= 0) {
+        const updated = [...prev];
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          notes,
+          updatedAt: Date.now(),
+        };
+        return updated;
+      } else {
+        return [
+          ...prev,
+          {
+            id: `att-${Date.now()}`,
+            classId: activeClassId,
+            date: selectedDate,
+            records: {},
+            notes,
+            updatedAt: Date.now(),
+          },
+        ];
+      }
+    });
   };
 
-  const studentTx = pointTransactions.filter(t => t.studentId === selectedStudent.id);
+  // Student CRUD
+  const addStudent = (stdData: Omit<Student, 'id' | 'stars' | 'badges' | 'seatRow' | 'seatCol'>) => {
+    const nextRow = Math.floor(currentStudents.length / activeClass.cols);
+    const nextCol = currentStudents.length % activeClass.cols;
+    const newStudent: Student = {
+      ...stdData,
+      id: `std-${Date.now()}`,
+      stars: 10, // Starting bonus
+      badges: ['Học sinh mới'],
+      seatRow: nextRow < activeClass.rows ? nextRow : 0,
+      seatCol: nextCol < activeClass.cols ? nextCol : 0,
+    };
+    setStudents(prev => [...prev, newStudent]);
+  };
+
+  const importStudentsBulk = (
+    newStdsData: Omit<Student, 'id' | 'stars' | 'badges' | 'seatRow' | 'seatCol'>[],
+    replaceExisting: boolean = true
+  ) => {
+    const AVATARS_MALE = [
+      'https://images.unsplash.com/photo-1544717305-2782549b5136?w=200&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1595454223600-91fbdd77e584?w=200&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1543332164-6e82f355badc?w=200&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?w=200&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=200&auto=format&fit=crop&q=80',
+    ];
+    const AVATARS_FEMALE = [
+      'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=200&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&auto=format&fit=crop&q=80',
+    ];
+
+    let maleIdx = 0;
+    let femaleIdx = 0;
+
+    const newStudents: Student[] = newStdsData.map((std, idx) => {
+      const nextRow = Math.floor(idx / activeClass.cols);
+      const nextCol = idx % activeClass.cols;
+
+      let avatar = std.avatar;
+      if (!avatar) {
+        if (std.gender === 'female') {
+          avatar = AVATARS_FEMALE[femaleIdx % AVATARS_FEMALE.length];
+          femaleIdx++;
+        } else {
+          avatar = AVATARS_MALE[maleIdx % AVATARS_MALE.length];
+          maleIdx++;
+        }
+      }
+
+      return {
+        ...std,
+        id: `std-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
+        avatar,
+        stars: std.stars ?? 10,
+        badges: std.badges || ['Học sinh mới'],
+        seatRow: nextRow < activeClass.rows ? nextRow : 0,
+        seatCol: nextCol < activeClass.cols ? nextCol : 0,
+      };
+    });
+
+    setStudents(prev => {
+      const otherClassStudents = replaceExisting
+        ? prev.filter(s => s.classId !== activeClassId)
+        : prev;
+      return [...otherClassStudents, ...newStudents];
+    });
+
+    if (replaceExisting) {
+      // Generate initial activity records with ACTUAL names of the newly imported students
+      const sampleReasons = [
+        'Phát biểu xây dựng bài sôi nổi môn Tiếng Việt',
+        'Đạt điểm tốt bài kiểm tra môn Toán',
+        'Tăng điểm rèn luyện tích cực trong giờ học',
+        'Giúp đỡ bạn cùng bàn giữ gìn vệ sinh lớp',
+        'Tích cực hăng hái tham gia hoạt động nhóm',
+      ];
+
+      const newTxList: PointTransaction[] = newStudents.slice(0, 5).map((std, idx) => ({
+        id: `pt-${Date.now()}-${idx}`,
+        studentId: std.id,
+        studentName: std.name,
+        classId: activeClassId,
+        amount: 5 + (idx % 2 === 0 ? 5 : 0),
+        reason: sampleReasons[idx % sampleReasons.length],
+        icon: 'Star',
+        type: 'positive',
+        timestamp: Date.now() - (idx + 1) * 3600000,
+      }));
+
+      setPointTransactions(prev => [
+        ...newTxList,
+        ...prev.filter(t => t.classId !== activeClassId),
+      ]);
+
+      setRedemptions(prev => prev.filter(r => r.classId !== activeClassId));
+    }
+  };
+
+  const updateStudent = (std: Student) => {
+    setStudents(prev => prev.map(s => (s.id === std.id ? std : s)));
+    if (selectedStudent?.id === std.id) {
+      setSelectedStudent(std);
+    }
+  };
+
+  const deleteStudent = (studentId: string) => {
+    setStudents(prev => prev.filter(s => s.id !== studentId));
+    if (selectedStudent?.id === studentId) {
+      setSelectedStudent(null);
+    }
+  };
+
+  const updateStudentAvatar = (studentId: string, avatarUrl: string) => {
+    setStudents(prev =>
+      prev.map(s => (s.id === studentId ? { ...s, avatar: avatarUrl } : s))
+    );
+    if (selectedStudent?.id === studentId) {
+      setSelectedStudent(prev => prev ? { ...prev, avatar: avatarUrl } : null);
+    }
+  };
+
+  // Seating
+  const updateStudentSeat = (studentId: string, row: number, col: number) => {
+    setStudents(prev =>
+      prev.map(s => {
+        if (s.id === studentId) {
+          return { ...s, seatRow: row, seatCol: col };
+        }
+        // If another student was in that seat, move them
+        if (s.classId === activeClassId && s.seatRow === row && s.seatCol === col) {
+          return { ...s, seatRow: -1, seatCol: -1 };
+        }
+        return s;
+      })
+    );
+  };
+
+  const swapSeats = (studentId1: string, studentId2: string) => {
+    const s1 = students.find(s => s.id === studentId1);
+    const s2 = students.find(s => s.id === studentId2);
+    if (!s1 || !s2) return;
+
+    setStudents(prev =>
+      prev.map(s => {
+        if (s.id === studentId1) return { ...s, seatRow: s2.seatRow, seatCol: s2.seatCol };
+        if (s.id === studentId2) return { ...s, seatRow: s1.seatRow, seatCol: s1.seatCol };
+        return s;
+      })
+    );
+  };
+
+  const randomizeSeats = () => {
+    const totalSlots = activeClass.rows * activeClass.cols;
+    const positions: { r: number; c: number }[] = [];
+    for (let r = 0; r < activeClass.rows; r++) {
+      for (let c = 0; c < activeClass.cols; c++) {
+        positions.push({ r, c });
+      }
+    }
+    // Shuffle positions
+    const shuffled = [...positions].sort(() => Math.random() - 0.5);
+
+    setStudents(prev => {
+      let idx = 0;
+      return prev.map(s => {
+        if (s.classId === activeClassId) {
+          const pos = shuffled[idx] || { r: 0, c: 0 };
+          idx++;
+          return { ...s, seatRow: pos.r, seatCol: pos.c };
+        }
+        return s;
+      });
+    });
+  };
+
+  const clearSeating = () => {
+    setStudents(prev =>
+      prev.map(s => (s.classId === activeClassId ? { ...s, seatRow: -1, seatCol: -1 } : s))
+    );
+  };
+
+  // Points & Rewards
+  const awardPoints = (studentId: string, amount: number, reason: string, icon = 'Star') => {
+    if (amount > 0) {
+      soundManager.playStarTing();
+    }
+    const target = students.find(s => s.id === studentId);
+    if (!target) return;
+
+    const newStars = Math.max(0, target.stars + amount);
+
+    setStudents(prev =>
+      prev.map(s => (s.id === studentId ? { ...s, stars: newStars } : s))
+    );
+
+    if (selectedStudent?.id === studentId) {
+      setSelectedStudent(prev => prev ? { ...prev, stars: newStars } : null);
+    }
+
+    const tx: PointTransaction = {
+      id: `pt-${Date.now()}`,
+      studentId,
+      studentName: target.name,
+      classId: activeClassId,
+      amount,
+      reason,
+      icon,
+      type: amount >= 0 ? 'positive' : 'negative',
+      timestamp: Date.now(),
+    };
+
+    setPointTransactions(prev => [tx, ...prev]);
+  };
+
+  const deletePointTransaction = (txId: string) => {
+    const targetTx = pointTransactions.find(t => t.id === txId);
+    if (targetTx) {
+      setStudents(prev =>
+        prev.map(s => {
+          if (s.id === targetTx.studentId) {
+            const newStars = Math.max(0, s.stars - targetTx.amount);
+            return { ...s, stars: newStars };
+          }
+          return s;
+        })
+      );
+    }
+    setPointTransactions(prev => prev.filter(t => t.id !== txId));
+  };
+
+  const updatePointTransaction = (updatedTx: PointTransaction) => {
+    const oldTx = pointTransactions.find(t => t.id === updatedTx.id);
+    const targetStudent = students.find(s => s.id === updatedTx.studentId);
+    
+    if (oldTx) {
+      const amountDiff = updatedTx.amount - oldTx.amount;
+      setStudents(prev =>
+        prev.map(s => {
+          if (s.id === updatedTx.studentId) {
+            const newStars = Math.max(0, s.stars + amountDiff);
+            return { ...s, stars: newStars };
+          }
+          return s;
+        })
+      );
+      setPointTransactions(prev =>
+        prev.map(t => (t.id === updatedTx.id ? { ...updatedTx, studentName: targetStudent ? targetStudent.name : updatedTx.studentName } : t))
+      );
+    } else {
+      if (targetStudent) {
+        const newStars = Math.max(0, targetStudent.stars + updatedTx.amount);
+        setStudents(prev =>
+          prev.map(s => (s.id === updatedTx.studentId ? { ...s, stars: newStars } : s))
+        );
+      }
+      setPointTransactions(prev => [updatedTx, ...prev]);
+    }
+  };
+
+  const redeemReward = (studentId: string, rewardId: string): { success: boolean; message: string } => {
+    const student = students.find(s => s.id === studentId);
+    const reward = rewards.find(r => r.id === rewardId);
+
+    if (!student || !reward) {
+      return { success: false, message: 'Học sinh hoặc phần quà không tồn tại!' };
+    }
+
+    if (reward.stock <= 0) {
+      return { success: false, message: 'Phần quà này đã hết trong kho quà!' };
+    }
+
+    if (student.stars < reward.cost) {
+      return {
+        success: false,
+        message: `Em ${student.name} có ${student.stars} sao, cần ${reward.cost} sao để đổi món này!`,
+      };
+    }
+
+    // Process redemption
+    soundManager.playSuccessFanfare();
+
+    // Deduct student stars
+    setStudents(prev =>
+      prev.map(s => (s.id === studentId ? { ...s, stars: s.stars - reward.cost } : s))
+    );
+
+    // Decrease stock
+    setRewards(prev =>
+      prev.map(r => (r.id === rewardId ? { ...r, stock: r.stock - 1 } : r))
+    );
+
+    // Add redemption log
+    const redemption: RewardRedemption = {
+      id: `rd-${Date.now()}`,
+      studentId,
+      studentName: student.name,
+      studentAvatar: student.avatar,
+      classId: activeClassId,
+      itemId: reward.id,
+      itemName: reward.name,
+      itemIcon: reward.icon,
+      cost: reward.cost,
+      timestamp: Date.now(),
+      status: 'completed',
+    };
+    setRedemptions(prev => [redemption, ...prev]);
+
+    // Record transaction
+    const tx: PointTransaction = {
+      id: `pt-${Date.now()}`,
+      studentId,
+      studentName: student.name,
+      classId: activeClassId,
+      amount: -reward.cost,
+      reason: `Đổi quà: ${reward.name}`,
+      icon: 'Gift',
+      type: 'negative',
+      timestamp: Date.now(),
+    };
+    setPointTransactions(prev => [tx, ...prev]);
+
+    return {
+      success: true,
+      message: `Đổi thành công "${reward.name}" cho em ${student.name}! Số sao còn lại của học sinh: ${student.stars - reward.cost} sao.`,
+    };
+  };
+
+  const addRewardItem = (itemData: Omit<RewardItem, 'id'>) => {
+    const newItem: RewardItem = {
+      ...itemData,
+      id: `rew-${Date.now()}`,
+    };
+    setRewards(prev => [...prev, newItem]);
+  };
+
+  const updateRewardItem = (item: RewardItem) => {
+    setRewards(prev => prev.map(r => (r.id === item.id ? item : r)));
+  };
+
+  const deleteRewardItem = (itemId: string) => {
+    setRewards(prev => prev.filter(r => r.id !== itemId));
+  };
+
+  // Timetable
+  const addTimetableSlot = (slotData: Omit<TimetableSlot, 'id'>) => {
+    const newSlot: TimetableSlot = {
+      ...slotData,
+      id: `tt-${Date.now()}`,
+    };
+    setTimetable(prev => [...prev, newSlot]);
+  };
+
+  const updateTimetableSlot = (slot: TimetableSlot) => {
+    setTimetable(prev => prev.map(s => (s.id === slot.id ? slot : s)));
+  };
+
+  const deleteTimetableSlot = (slotId: string) => {
+    setTimetable(prev => prev.filter(s => s.id !== slotId));
+  };
+
+  // Class methods
+  const addClass = (clsData: Omit<Classroom, 'id'>) => {
+    const newClass: Classroom = {
+      ...clsData,
+      id: `class-${Date.now()}`,
+    };
+    setClasses(prev => [...prev, newClass]);
+    setActiveClassId(newClass.id);
+  };
+
+  const updateClass = (cls: Classroom) => {
+    setClasses(prev => prev.map(c => (c.id === cls.id ? cls : c)));
+  };
 
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-        <motion.div
-          initial={{ scale: 0.95, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.95, opacity: 0 }}
-          className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col"
-        >
-          {/* Top Banner with Student Cover */}
-          <div className="relative bg-linear-to-r from-emerald-500 via-teal-500 to-cyan-600 p-6 text-white shrink-0">
-            <button
-              id="btn-close-student-profile"
-              onClick={() => setSelectedStudent(null)}
-              className="absolute top-4 right-4 p-2 bg-black/20 hover:bg-black/40 text-white rounded-full transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="flex flex-col sm:flex-row items-center sm:items-end gap-5">
-              {/* Avatar with Crop Trigger */}
-              <div className="relative group">
-                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-4 border-white/90 shadow-lg bg-white">
-                  <img
-                    src={currentData.avatar}
-                    alt={currentData.name}
-                    className="w-full h-full object-cover"
-                    referrerPolicy="no-referrer"
-                  />
-                </div>
-                <button
-                  id="btn-open-crop-from-profile"
-                  onClick={openCropForThisStudent}
-                  title="Thay đổi & Cắt ảnh đại diện"
-                  className="absolute bottom-0 right-0 p-2 bg-slate-900/80 hover:bg-slate-900 text-white rounded-full shadow-md border-2 border-white transition-transform hover:scale-110"
-                >
-                  <Camera className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="text-center sm:text-left flex-1">
-                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                  <span className="px-2.5 py-0.5 bg-white/20 backdrop-blur-md rounded-full text-xs font-semibold uppercase tracking-wider">
-                    {currentData.studentCode}
-                  </span>
-                  <span
-                    className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      currentData.gender === 'female' ? 'bg-pink-400/80 text-white' : 'bg-blue-400/80 text-white'
-                    }`}
-                  >
-                    {currentData.gender === 'female' ? 'Nữ' : 'Nam'}
-                  </span>
-                </div>
-
-                <h2 className="text-2xl font-bold mt-1 text-white">{currentData.name}</h2>
-
-                {/* Stars Counter */}
-                <div className="flex items-center justify-center sm:justify-start gap-2 mt-2">
-                  <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-400/90 text-amber-950 font-bold rounded-xl shadow-xs text-sm">
-                    <Star className="w-4 h-4 fill-amber-950" />
-                    <span>{currentData.stars} Sao thưởng</span>
-                  </div>
-                  <button
-                    id="btn-profile-award-points"
-                    onClick={() => {
-                      setQuickPointTargetStudent(selectedStudent);
-                      setIsQuickPointModalOpen(true);
-                    }}
-                    className="px-3 py-1 bg-white/20 hover:bg-white/30 text-white rounded-xl text-xs font-medium backdrop-blur-md flex items-center gap-1 transition-colors"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    Thưởng / Trừ sao
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Body Content */}
-          <div className="p-6 overflow-y-auto flex-1 space-y-6">
-            {isEditing ? (
-              /* Edit Mode Form */
-              <div className="space-y-4">
-                <h3 className="font-semibold text-slate-800 text-sm uppercase tracking-wider text-emerald-700">
-                  Chỉnh sửa thông tin học sinh
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Họ và tên</label>
-                    <input
-                      id="edit-student-name"
-                      type="text"
-                      value={formData?.name || ''}
-                      onChange={e => setFormData(prev => prev ? { ...prev, name: e.target.value } : null)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Mã học sinh</label>
-                    <input
-                      id="edit-student-code"
-                      type="text"
-                      value={formData?.studentCode || ''}
-                      onChange={e => setFormData(prev => prev ? { ...prev, studentCode: e.target.value } : null)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Giới tính</label>
-                    <select
-                      id="edit-student-gender"
-                      value={formData?.gender || 'male'}
-                      onChange={e => setFormData(prev => prev ? { ...prev, gender: e.target.value as 'male' | 'female' } : null)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500"
-                    >
-                      <option value="male">Nam</option>
-                      <option value="female">Nữ</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Ngày sinh</label>
-                    <input
-                      id="edit-student-birthday"
-                      type="date"
-                      value={formData?.birthday || ''}
-                      onChange={e => setFormData(prev => prev ? { ...prev, birthday: e.target.value } : null)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Tên Phụ huynh</label>
-                    <input
-                      id="edit-student-parent-name"
-                      type="text"
-                      value={formData?.parentName || ''}
-                      onChange={e => setFormData(prev => prev ? { ...prev, parentName: e.target.value } : null)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">SĐT Phụ huynh</label>
-                    <input
-                      id="edit-student-parent-phone"
-                      type="text"
-                      value={formData?.parentPhone || ''}
-                      onChange={e => setFormData(prev => prev ? { ...prev, parentPhone: e.target.value } : null)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Sở thích</label>
-                    <input
-                      id="edit-student-hobby"
-                      type="text"
-                      value={formData?.hobby || ''}
-                      onChange={e => setFormData(prev => prev ? { ...prev, hobby: e.target.value } : null)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500"
-                      placeholder="Ví dụ: Đọc sách, đá bóng..."
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Ước mơ</label>
-                    <input
-                      id="edit-student-dream"
-                      type="text"
-                      value={formData?.dream || ''}
-                      onChange={e => setFormData(prev => prev ? { ...prev, dream: e.target.value } : null)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500"
-                      placeholder="Ví dụ: Bác sĩ, Kỹ sư..."
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Ghi chú của giáo viên</label>
-                  <textarea
-                    id="edit-student-notes"
-                    rows={3}
-                    value={formData?.notes || ''}
-                    onChange={e => setFormData(prev => prev ? { ...prev, notes: e.target.value } : null)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-
-                {/* Badges edit */}
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Huy hiệu danh hiệu</label>
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {formData?.badges.map((badge, idx) => (
-                      <span
-                        key={idx}
-                        className="px-2.5 py-1 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-xs flex items-center gap-1.5"
-                      >
-                        <Award className="w-3.5 h-3.5 text-amber-600" />
-                        {badge}
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveBadge(idx)}
-                          className="text-amber-600 hover:text-red-600"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                  <div className="flex gap-2">
-                    <input
-                      id="input-new-badge"
-                      type="text"
-                      placeholder="Nhập tên huy hiệu mới..."
-                      value={newBadgeText}
-                      onChange={e => setNewBadgeText(e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleAddBadge();
-                        }
-                      }}
-                      className="flex-1 px-3 py-1.5 border border-slate-300 rounded-lg text-xs"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddBadge}
-                      className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-medium"
-                    >
-                      Thêm
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              /* View Mode */
-              <>
-                {/* Personal & Family Details Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-3">
-                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                      <User className="w-4 h-4 text-emerald-600" />
-                      Thông tin cơ bản
-                    </h4>
-                    <div className="text-sm space-y-1.5">
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">Ngày sinh:</span>
-                        <span className="font-medium text-slate-800 flex items-center gap-1">
-                          <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                          {currentData.birthday}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">Phụ huynh:</span>
-                        <span className="font-medium text-slate-800">{currentData.parentName}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">Điện thoại liên hệ:</span>
-                        <a
-                          href={`tel:${currentData.parentPhone}`}
-                          className="font-semibold text-emerald-600 hover:underline flex items-center gap-1"
-                        >
-                          <Phone className="w-3.5 h-3.5" />
-                          {currentData.parentPhone}
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="p-4 rounded-2xl bg-emerald-50/50 border border-emerald-100/60 space-y-3">
-                    <h4 className="text-xs font-semibold text-emerald-700 uppercase tracking-wider flex items-center gap-1.5">
-                      <Sparkles className="w-4 h-4 text-emerald-600" />
-                      Tính cách & Ước mơ
-                    </h4>
-                    <div className="text-sm space-y-1.5">
-                      <div className="flex items-start gap-2">
-                        <Heart className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
-                        <div>
-                          <span className="text-xs text-slate-500 block">Sở thích:</span>
-                          <span className="font-medium text-slate-800">{currentData.hobby || 'Chưa cập nhật'}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <Compass className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
-                        <div>
-                          <span className="text-xs text-slate-500 block">Ước mơ tương lai:</span>
-                          <span className="font-medium text-slate-800">{currentData.dream || 'Chưa cập nhật'}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Badges Section */}
-                <div>
-                  <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                    <Award className="w-4 h-4 text-amber-500" />
-                    Huy hiệu danh hiệu ({currentData.badges.length})
-                  </h4>
-                  <div className="flex flex-wrap gap-2">
-                    {currentData.badges.map((badge, idx) => (
-                      <span
-                        key={idx}
-                        className="px-3 py-1 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl text-xs font-medium flex items-center gap-1.5 shadow-2xs"
-                      >
-                        <Award className="w-3.5 h-3.5 text-amber-500" />
-                        {badge}
-                      </span>
-                    ))}
-                    {currentData.badges.length === 0 && (
-                      <span className="text-xs text-slate-400 italic">Chưa có huy hiệu</span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Teacher's Notes */}
-                <div className="p-4 rounded-2xl bg-amber-50/40 border border-amber-100">
-                  <h4 className="text-xs font-semibold text-amber-800 uppercase tracking-wider mb-1">
-                    Nhận xét / Ghi chú của giáo viên:
-                  </h4>
-                  <p className="text-sm text-slate-700 leading-relaxed">
-                    {currentData.notes || 'Chưa có ghi chú đặc biệt cho học sinh này.'}
-                  </p>
-                </div>
-
-                {/* Attendance Monthly Summary & Absent Dates Section */}
-                {(() => {
-                  const monthPrefix = selectedDate ? selectedDate.substring(0, 7) : new Date().toISOString().substring(0, 7);
-                  const dateParts = monthPrefix.split('-');
-                  const yearStr = dateParts[0] || '2026';
-                  const monthStr = dateParts[1] || '10';
-
-                  // Filter attendance records for active class in the selected month where attendance was marked for this student
-                  const monthRecords = (attendanceRecords || []).filter(
-                    r => r && r.classId === activeClass?.id && r.date && typeof r.date === 'string' && r.date.startsWith(monthPrefix)
-                  );
-
-                  let totalMarkedDays = 0;
-                  let presentDays = 0;
-                  let lateDays = 0;
-                  let excusedDays = 0;
-                  let unexcusedDays = 0;
-                  
-                  const absentDatesList: { date: string; status: 'excused' | 'unexcused'; notes?: string }[] = [];
-
-                  monthRecords.forEach(record => {
-                    const recs = record.records || {};
-                    const st = currentData ? recs[currentData.id] : undefined;
-                    if (st !== undefined) {
-                      totalMarkedDays++;
-                      if (st === 'present') {
-                        presentDays++;
-                      } else if (st === 'late') {
-                        lateDays++;
-                        presentDays++; // Count late as present day
-                      } else if (st === 'excused') {
-                        excusedDays++;
-                        absentDatesList.push({ date: record.date, status: 'excused', notes: record.notes });
-                      } else if (st === 'unexcused') {
-                        unexcusedDays++;
-                        absentDatesList.push({ date: record.date, status: 'unexcused', notes: record.notes });
-                      }
-                    }
-                  });
-
-                  const totalAbsentDays = excusedDays + unexcusedDays;
-                  const attendanceRate = totalMarkedDays > 0 ? Math.round((presentDays / totalMarkedDays) * 100) : 100;
-
-                  return (
-                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3.5">
-                      <div className="flex items-center justify-between border-b border-slate-200/60 pb-2.5">
-                        <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                          <CalendarCheck className="w-4 h-4 text-emerald-600" />
-                          Tổng hợp điểm danh Tháng {parseInt(monthStr)}/{yearStr}
-                        </h4>
-                        <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full font-bold">
-                          {totalMarkedDays} buổi đã điểm danh
-                        </span>
-                      </div>
-
-                      {totalMarkedDays > 0 ? (
-                        <>
-                          {/* Summary Cards Grid */}
-                          <div className="grid grid-cols-3 gap-2.5">
-                            <div className="bg-emerald-50/70 border border-emerald-200/70 p-3 rounded-xl text-center">
-                              <span className="text-[10px] text-emerald-800 font-bold block uppercase tracking-wider">Số ngày đi học</span>
-                              <span className="text-base font-black text-emerald-700 block mt-0.5">
-                                {presentDays} <span className="text-xs font-semibold">/ {totalMarkedDays} ngày</span>
-                              </span>
-                              {lateDays > 0 && (
-                                <span className="text-[9px] text-amber-700 font-medium block mt-0.5">({lateDays} ngày đi muộn)</span>
-                              )}
-                            </div>
-
-                            <div className={`p-3 rounded-xl text-center border ${
-                              totalAbsentDays > 0
-                                ? 'bg-rose-50/70 border-rose-200/70 text-rose-900'
-                                : 'bg-slate-100/70 border-slate-200/70 text-slate-700'
-                            }`}>
-                              <span className="text-[10px] font-bold block uppercase tracking-wider">Số ngày nghỉ</span>
-                              <span className={`text-base font-black block mt-0.5 ${totalAbsentDays > 0 ? 'text-rose-600' : 'text-slate-700'}`}>
-                                {totalAbsentDays} <span className="text-xs font-semibold">ngày</span>
-                              </span>
-                              <span className="text-[9px] opacity-80 block mt-0.5">
-                                ({excusedDays} có phép, {unexcusedDays} k.phép)
-                              </span>
-                            </div>
-
-                            <div className="bg-teal-50/70 border border-teal-200/70 p-3 rounded-xl text-center">
-                              <span className="text-[10px] text-teal-800 font-bold block uppercase tracking-wider">Tỷ lệ chuyên cần</span>
-                              <span className="text-base font-black text-teal-700 block mt-0.5">
-                                {attendanceRate}%
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Absent Dates Detail List */}
-                          <div className="space-y-2 pt-1">
-                            <h5 className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center justify-between">
-                              <span>Chi tiết các ngày nghỉ trong tháng ({absentDatesList.length})</span>
-                              <span className="text-[9px] text-slate-400 font-normal">Chỉ tính những ngày GV đã điểm danh</span>
-                            </h5>
-
-                            {absentDatesList.length > 0 ? (
-                              <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-                                {absentDatesList.map((item, idx) => {
-                                  const dateParts = item.date.split('-');
-                                  const formattedDate = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
-                                  return (
-                                    <div
-                                      key={idx}
-                                      className="p-2 bg-white rounded-xl border border-slate-200/80 text-xs flex items-center justify-between shadow-2xs"
-                                    >
-                                      <div className="flex items-center gap-2">
-                                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                                        <span className="font-bold text-slate-800">{formattedDate}</span>
-                                        {item.notes && (
-                                          <span className="text-[10px] text-slate-500 italic max-w-[180px] truncate">
-                                            - {item.notes}
-                                          </span>
-                                        )}
-                                      </div>
-
-                                      <span
-                                        className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border ${
-                                          item.status === 'excused'
-                                            ? 'bg-blue-50 text-blue-700 border-blue-200'
-                                            : 'bg-rose-50 text-rose-700 border-rose-200'
-                                        }`}
-                                      >
-                                        {item.status === 'excused' ? '🔵 Vắng có phép' : '🔴 Vắng không phép'}
-                                      </span>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            ) : (
-                              <div className="p-3 bg-emerald-50/50 border border-emerald-100 rounded-xl text-center text-xs text-emerald-800 font-medium flex items-center justify-center gap-1.5">
-                                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                                Học sinh đi học đầy đủ 100% trong các buổi GV đã điểm danh tháng này.
-                              </div>
-                            )}
-                          </div>
-                        </>
-                      ) : (
-                        <div className="p-4 text-center text-xs text-slate-400 italic">
-                          Chưa có buổi học nào được giáo viên tích chọn điểm danh trong tháng {parseInt(monthStr)}/{yearStr}.
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-
-                {/* Recent Star Transactions History */}
-                <div>
-                  <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                    <Clock className="w-4 h-4 text-slate-400" />
-                    Lịch sử khen thưởng & Đổi quà gần đây
-                  </h4>
-                  {studentTx.length > 0 ? (
-                    <div className="space-y-2 max-h-40 overflow-y-auto">
-                      {studentTx.map(t => (
-                        <div
-                          key={t.id}
-                          className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl text-xs border border-slate-100"
-                        >
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`w-6 h-6 rounded-full flex items-center justify-center font-bold ${
-                                t.type === 'positive'
-                                  ? 'bg-emerald-100 text-emerald-700'
-                                  : 'bg-rose-100 text-rose-700'
-                              }`}
-                            >
-                              {t.type === 'positive' ? '+' : '-'}
-                            </span>
-                            <span className="font-medium text-slate-700">{t.reason}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`font-bold ${
-                                t.type === 'positive' ? 'text-emerald-600' : 'text-rose-600'
-                              }`}
-                            >
-                              {t.amount > 0 ? `+${t.amount}` : t.amount} sao
-                            </span>
-                            <span className="text-slate-400 text-[10px]">
-                              {new Date(t.timestamp).toLocaleDateString('vi-VN')}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-slate-400 italic">Chưa có ghi nhận điểm trong hệ thống.</p>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Footer Controls */}
-          <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-            {isEditing ? (
-              <div className="flex items-center justify-end gap-3 w-full">
-                <button
-                  id="btn-cancel-edit-student"
-                  onClick={() => setIsEditing(false)}
-                  className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200/60 rounded-xl transition-colors"
-                >
-                  Huỷ
-                </button>
-                <button
-                  id="btn-save-student-changes"
-                  onClick={handleSaveEdit}
-                  className="px-5 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs flex items-center gap-2 transition-all"
-                >
-                  <Check className="w-4 h-4" />
-                  Lưu thay đổi
-                </button>
-              </div>
-            ) : (
-              <>
-                <button
-                  id="btn-delete-student"
-                  onClick={() => {
-                    if (window.confirm(`Bạn có chắc muốn xoá học sinh "${selectedStudent.name}" khỏi danh sách lớp?`)) {
-                      deleteStudent(selectedStudent.id);
-                    }
-                  }}
-                  className="text-xs font-medium text-rose-600 hover:text-rose-700 flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-rose-50 transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Xoá học sinh
-                </button>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    id="btn-edit-student-profile"
-                    onClick={handleStartEdit}
-                    className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 rounded-xl shadow-2xs flex items-center gap-1.5 transition-colors"
-                  >
-                    <Edit2 className="w-4 h-4 text-slate-500" />
-                    Chỉnh sửa
-                  </button>
-                  <button
-                    id="btn-profile-done"
-                    onClick={() => setSelectedStudent(null)}
-                    className="px-5 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs transition-colors"
-                  >
-                    Đóng
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </motion.div>
-      </div>
-    </AnimatePresence>
+    <ClassroomContext.Provider
+      value={{
+        currentTab,
+        setCurrentTab,
+        classes,
+        activeClassId,
+        setActiveClassId,
+        activeClass,
+        addClass,
+        updateClass,
+        students,
+        currentStudents,
+        selectedStudent,
+        setSelectedStudent,
+        addStudent,
+        updateStudent,
+        deleteStudent,
+        updateStudentAvatar,
+        attendanceRecords,
+        selectedDate,
+        setSelectedDate,
+        todayAttendance,
+        setStudentAttendance,
+        markAllAttendance,
+        saveAttendanceNotes,
+        currentAttendanceNotes,
+        updateStudentSeat,
+        swapSeats,
+        randomizeSeats,
+        clearSeating,
+        rewards,
+        redemptions,
+        pointTransactions,
+        awardPoints,
+        updatePointTransaction,
+        deletePointTransaction,
+        redeemReward,
+        addRewardItem,
+        updateRewardItem,
+        deleteRewardItem,
+        timetable,
+        addTimetableSlot,
+        updateTimetableSlot,
+        deleteTimetableSlot,
+        isSoundMuted,
+        toggleSound,
+        isQuickPointModalOpen,
+        setIsQuickPointModalOpen,
+        quickPointTargetStudent,
+        setQuickPointTargetStudent,
+        isLuckyWheelOpen,
+        setIsLuckyWheelOpen,
+        isCropModalOpen,
+        setIsCropModalOpen,
+        cropTargetStudentId,
+        setCropTargetStudentId,
+        cropSourceImage,
+        setCropSourceImage,
+        isAIAssistantOpen,
+        setIsAIAssistantOpen,
+        isSettingsOpen,
+        setIsSettingsOpen,
+        aiApiKey,
+        setAiApiKey,
+        exportBackupData,
+        importBackupData,
+        activeModel,
+        setActiveModel,
+        importStudentsBulk,
+      }}
+    >
+      {children}
+    </ClassroomContext.Provider>
   );
 };
+
+export const useClassroom = () => {
+  const context = useContext(ClassroomContext);
+  if (!context) {
+    throw new Error('useClassroom must be used within ClassroomProvider');
+  }
+  return context;
+};
+
+// --- Student Import Helper Utilities ---
+export const STUDENT_FILE_TEMPLATE_HEADER = 'Họ tên học sinh,Ngày sinh,Giới tính,Họ tên phụ huynh,Số điện thoại';
+
+export const STUDENT_FILE_TEMPLATE_CSV = `\uFEFF${STUDENT_FILE_TEMPLATE_HEADER}
+Nguyễn Minh Anh,2016-04-12,Nữ,Nguyễn Văn Hùng,0912345678
+Trần Bảo Long,2016-08-20,Nam,Trần Đình Trọng,0987654321
+Lê Gia Hân,2016-01-15,Nữ,Lê Thanh Bình,0903112233
+Phạm Đức Duy,2016-11-05,Nam,Phạm Văn Nam,0978990011
+Vũ Thảo Nguyên,2016-03-28,Nữ,Vũ Đức Thắng,0934567890`;
+
+export const downloadStudentTemplate = () => {
+  const blob = new Blob([STUDENT_FILE_TEMPLATE_CSV], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'Mau_Danh_Sach_Hoc_Sinh.csv';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
+
+function parseCSVLine(line: string, delimiter: string): string[] {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+
+    if (char === '"' || char === "'") {
+      if (inQuotes && line[i + 1] === char) {
+        current += char;
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === delimiter && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
+function normalizeHeader(str: string): string {
+  return str
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[đĐ]/g, 'd')
+    .trim();
+}
+
+function normalizeDate(dateStr: string): string {
+  if (!dateStr) return '2016-01-01';
+  const cleanStr = dateStr.trim();
+  
+  if (/^\d{4}-\d{2}-\d{2}$/.test(cleanStr)) {
+    return cleanStr;
+  }
+
+  const parts = cleanStr.split(/[\/\-\.]/);
+  if (parts.length === 3) {
+    if (parts[0].length === 4) {
+      const [y, m, d] = parts;
+      return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+    } else if (parts[2].length === 4) {
+      const [d, m, y] = parts;
+      return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+    }
+  }
+  return cleanStr || '2016-01-01';
+}
+
+export interface ParsedImportResult {
+  success: boolean;
+  message?: string;
+  students: Omit<Student, 'id' | 'stars' | 'badges' | 'seatRow' | 'seatCol'>[];
+}
+
+/**
+ * Minimal native ZIP reader for decompressed .xlsx and .docx files in modern browsers
+ */
+async function unzipEntries(buffer: ArrayBuffer): Promise<Record<string, string>> {
+  const bytes = new Uint8Array(buffer);
+  const result: Record<string, string> = {};
+  let pos = 0;
+
+  while (pos < bytes.length - 30) {
+    // Check for local file header signature 0x04034b50 ('PK\x03\x04')
+    if (bytes[pos] === 0x50 && bytes[pos + 1] === 0x4b && bytes[pos + 2] === 0x03 && bytes[pos + 3] === 0x04) {
+      const compression = bytes[pos + 8] | (bytes[pos + 9] << 8);
+      const compressedSize = bytes[pos + 18] | (bytes[pos + 19] << 8) | (bytes[pos + 20] << 16) | (bytes[pos + 21] << 24);
+      const fileNameLen = bytes[pos + 26] | (bytes[pos + 27] << 8);
+      const extraLen = bytes[pos + 28] | (bytes[pos + 29] << 8);
+
+      const nameBytes = bytes.subarray(pos + 30, pos + 30 + fileNameLen);
+      const fileName = new TextDecoder('utf-8').decode(nameBytes);
+
+      const dataStart = pos + 30 + fileNameLen + extraLen;
+      const dataEnd = dataStart + compressedSize;
+
+      if (dataEnd <= bytes.length) {
+        const compressedData = bytes.subarray(dataStart, dataEnd);
+
+        if (compression === 0) { // Uncompressed
+          result[fileName] = new TextDecoder('utf-8').decode(compressedData);
+        } else if (compression === 8 && typeof DecompressionStream !== 'undefined') { // Deflated
+          try {
+            const ds = new DecompressionStream('deflate-raw');
+            const writer = ds.writable.getWriter();
+            writer.write(compressedData);
+            writer.close();
+            const response = new Response(ds.readable);
+            const text = await response.text();
+            result[fileName] = text;
+          } catch {
+            // Ignore single entry decompression error
+          }
+        }
+      }
+      pos = dataEnd > pos ? dataEnd : pos + 1;
+    } else {
+      pos++;
+    }
+  }
+
+  return result;
+}
+
+function parseXlsxEntries(entries: Record<string, string>): string[][] {
+  const sharedStrings: string[] = [];
+
+  const sharedXml = entries['xl/sharedStrings.xml'];
+  if (sharedXml) {
+    const doc = new DOMParser().parseFromString(sharedXml, 'text/xml');
+    const siElements = doc.querySelectorAll('si');
+    siElements.forEach((si) => {
+      let t = '';
+      si.querySelectorAll('t').forEach(tNode => { t += tNode.textContent || ''; });
+      sharedStrings.push(t.trim());
+    });
+  }
+
+  let sheetXml = entries['xl/worksheets/sheet1.xml'];
+  if (!sheetXml) {
+    const sheetKeys = Object.keys(entries).filter(k => k.startsWith('xl/worksheets/'));
+    if (sheetKeys.length > 0) sheetXml = entries[sheetKeys[0]];
+  }
+
+  if (!sheetXml) return [];
+
+  const doc = new DOMParser().parseFromString(sheetXml, 'text/xml');
+  const rowsXml = doc.querySelectorAll('row');
+  const resultRows: string[][] = [];
+
+  rowsXml.forEach((rowNode) => {
+    const cells = rowNode.querySelectorAll('c');
+    const rowValues: string[] = [];
+
+    cells.forEach((cellNode) => {
+      const type = cellNode.getAttribute('t');
+      const valNode = cellNode.querySelector('v');
+      let val = valNode ? valNode.textContent || '' : '';
+
+      if (type === 's' && val !== '') {
+        const idx = parseInt(val, 10);
+        val = sharedStrings[idx] || val;
+      } else if (type === 'inlineStr') {
+        const isTNode = cellNode.querySelector('is t');
+        if (isTNode) val = isTNode.textContent || '';
+      }
+
+      rowValues.push(val.trim());
+    });
+
+    if (rowValues.some(v => v.length > 0)) {
+      resultRows.push(rowValues);
+    }
+  });
+
+  return resultRows;
+}
+
+function parseDocxXml(xmlString: string): string[][] {
+  const doc = new DOMParser().parseFromString(xmlString, 'text/xml');
+  const rows: string[][] = [];
+
+  const tables = doc.querySelectorAll('w\\:tbl, tbl');
+  if (tables.length > 0) {
+    tables.forEach((tableNode) => {
+      const trList = tableNode.querySelectorAll('w\\:tr, tr');
+      trList.forEach((trNode) => {
+        const tcList = trNode.querySelectorAll('w\\:tc, tc');
+        const rowCells: string[] = [];
+        tcList.forEach((tcNode) => {
+          let cellText = '';
+          const tList = tcNode.querySelectorAll('w\\:t, t');
+          tList.forEach((tNode) => { cellText += tNode.textContent || ''; });
+          rowCells.push(cellText.trim());
+        });
+        if (rowCells.some(c => c.length > 0)) {
+          rows.push(rowCells);
+        }
+      });
+    });
+  }
+
+  if (rows.length === 0) {
+    const pList = doc.querySelectorAll('w\\:p, p');
+    pList.forEach((pNode) => {
+      let pText = '';
+      const tList = pNode.querySelectorAll('w\\:t, t');
+      tList.forEach((tNode) => { pText += tNode.textContent || ''; });
+      const cleanP = pText.trim();
+      if (cleanP) {
+        const cols = cleanP.split(/[,;\t|]/).map(c => c.trim());
+        rows.push(cols);
+      }
+    });
+  }
+
+  return rows;
+}
+
+function convertRowsToStudents(rows: string[][], activeClassId: string): ParsedImportResult {
+  if (!rows || rows.length === 0) {
+    return { success: false, message: 'Tệp không chứa dữ liệu dòng hợp lệ nào!', students: [] };
+  }
+
+  const firstLineCols = rows[0];
+  const normalizedCols = firstLineCols.map(normalizeHeader);
+
+  let nameIdx = -1;
+  let bdayIdx = -1;
+  let genderIdx = -1;
+  let parentIdx = -1;
+  let phoneIdx = -1;
+  let isHeaderRow = false;
+
+  normalizedCols.forEach((col, idx) => {
+    // 1. Check for Phone Number (highest priority for phone keywords)
+    if (col.includes('sdt') || col.includes('so dien thoai') || col.includes('phone') || col.includes('dien thoai') || col.includes('lien he')) {
+      phoneIdx = idx;
+      isHeaderRow = true;
+    }
+    // 2. Check for Parent Name (contains parent keywords: phu huynh, cha me, parent)
+    else if (col.includes('phu huynh') || col.includes('cha me') || col.includes('parent') || col === 'ph' || col.includes('ph:')) {
+      parentIdx = idx;
+      isHeaderRow = true;
+    }
+    // 3. Check for Student Code / STT (ignore as name)
+    else if (col.includes('ma hs') || col.includes('ma hoc sinh') || col.includes('mã hs') || col.includes('code') || col === 'stt' || col === 'stt.') {
+      isHeaderRow = true;
+    }
+    // 4. Check for Student Name (must not contain parent keywords)
+    else if (
+      col.includes('hoc sinh') ||
+      col.includes('ho ten') ||
+      col.includes('ho va ten') ||
+      col.includes('ten hs') ||
+      col === 'ten' ||
+      col === 'name' ||
+      col.includes('student')
+    ) {
+      nameIdx = idx;
+      isHeaderRow = true;
+    }
+    // 5. Check for Birthday
+    else if (col.includes('ngay sinh') || col.includes('namsinh') || col.includes('birthday') || col.includes('sinh nhat') || col.includes('nam sinh')) {
+      bdayIdx = idx;
+      isHeaderRow = true;
+    }
+    // 6. Check for Gender
+    else if (col.includes('gioi tinh') || col.includes('gender') || col.includes('nam/nu') || col.includes('nam nu')) {
+      genderIdx = idx;
+      isHeaderRow = true;
+    }
+  });
+
+  let startIndex = 0;
+  if (isHeaderRow) {
+    startIndex = 1;
+  } else {
+    const isFirstColCode = /^\d+$/.test(firstLineCols[0]) || /^HS/i.test(firstLineCols[0]);
+    if (isFirstColCode && firstLineCols.length >= 6) {
+      nameIdx = 1;
+      bdayIdx = 3;
+      genderIdx = 2;
+      parentIdx = 4;
+      phoneIdx = 5;
+    } else {
+      nameIdx = 0;
+      bdayIdx = 1;
+      genderIdx = 2;
+      parentIdx = 3;
+      phoneIdx = 4;
+    }
+  }
+
+  const parsedStudents: Omit<Student, 'id' | 'stars' | 'badges' | 'seatRow' | 'seatCol'>[] = [];
+
+  for (let i = startIndex; i < rows.length; i++) {
+    const cols = rows[i];
+    if (!cols || cols.length === 0) continue;
+
+    const rawName = nameIdx >= 0 && cols[nameIdx] !== undefined ? cols[nameIdx] : (cols[0] || '');
+    if (!rawName || /^(stt|mã|mã hs|họ và tên|họ tên|stt\.)$/i.test(rawName)) continue;
+
+    const rawBday = bdayIdx >= 0 && cols[bdayIdx] !== undefined ? cols[bdayIdx] : (cols[1] || '');
+    const rawGender = genderIdx >= 0 && cols[genderIdx] !== undefined ? cols[genderIdx] : (cols[2] || '');
+    const rawParent = parentIdx >= 0 && cols[parentIdx] !== undefined ? cols[parentIdx] : (cols[3] || '');
+    const rawPhone = phoneIdx >= 0 && cols[phoneIdx] !== undefined ? cols[phoneIdx] : (cols[4] || '');
+
+    const genderNormalized = normalizeHeader(rawGender);
+    const gender: 'male' | 'female' = genderNormalized.includes('nu') || genderNormalized === 'female' || genderNormalized === 'f'
+      ? 'female'
+      : 'male';
+
+    const formattedBday = normalizeDate(rawBday);
+    const studentCode = `HS-${String(parsedStudents.length + 1).padStart(2, '0')}`;
+
+    parsedStudents.push({
+      classId: activeClassId,
+      studentCode,
+      name: rawName,
+      gender,
+      birthday: formattedBday,
+      avatar: '',
+      parentName: rawParent || 'Phụ huynh học sinh',
+      parentPhone: rawPhone || '0901 234 567',
+      notes: 'Học sinh nhập theo danh sách cả lớp.',
+      hobby: 'Học tập & Vui chơi',
+      dream: 'Ước mơ tương lai',
+    });
+  }
+
+  if (parsedStudents.length === 0) {
+    return {
+      success: false,
+      message: 'Không tìm thấy thông tin học sinh hợp lệ nào trong danh sách!',
+      students: [],
+    };
+  }
+
+  return {
+    success: true,
+    students: parsedStudents,
+  };
+}
+
+export function parseStudentListText(text: string, activeClassId: string): ParsedImportResult {
+  if (!text || !text.trim()) {
+    return { success: false, message: 'Tệp danh sách trống, vui lòng chọn tệp có chứa dữ liệu học sinh!', students: [] };
+  }
+
+  let cleanText = text.replace(/^\uFEFF/, '').trim();
+  const rawLines = cleanText.split(/\r?\n/).filter(line => line.trim().length > 0);
+  if (rawLines.length === 0) {
+    return { success: false, message: 'Tệp danh sách không có dữ liệu!', students: [] };
+  }
+
+  const firstLine = rawLines[0];
+  const commaCount = (firstLine.match(/,/g) || []).length;
+  const semiCount = (firstLine.match(/;/g) || []).length;
+  const tabCount = (firstLine.match(/\t/g) || []).length;
+
+  let delimiter = ',';
+  if (semiCount > commaCount && semiCount >= tabCount) {
+    delimiter = ';';
+  } else if (tabCount > commaCount && tabCount > semiCount) {
+    delimiter = '\t';
+  }
+
+  const rows = rawLines.map(line => parseCSVLine(line, delimiter));
+  return convertRowsToStudents(rows, activeClassId);
+}
+
+/**
+ * Master Universal File Parser supporting .xlsx, .xls, .docx, .doc, .csv, .txt files
+ */
+export async function parseStudentFileUniversal(file: File, activeClassId: string): Promise<ParsedImportResult> {
+  const fileName = file.name.toLowerCase();
+
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+
+    // Check if file is ZIP archive (.xlsx or .docx)
+    if (fileName.endsWith('.xlsx') || fileName.endsWith('.docx') || fileName.endsWith('.zip')) {
+      const entries = await unzipEntries(arrayBuffer);
+
+      // Check for Excel sheet
+      if (entries['xl/worksheets/sheet1.xml'] || entries['xl/workbook.xml']) {
+        const rows = parseXlsxEntries(entries);
+        return convertRowsToStudents(rows, activeClassId);
+      }
+
+      // Check for Word document
+      if (entries['word/document.xml']) {
+        const rows = parseDocxXml(entries['word/document.xml']);
+        return convertRowsToStudents(rows, activeClassId);
+      }
+    }
+
+    // Try reading as raw text (CSV, TSV, TXT, or fallback)
+    const textDecoder = new TextDecoder('utf-8');
+    const rawText = textDecoder.decode(arrayBuffer);
+    return parseStudentListText(rawText, activeClassId);
+  } catch (err: any) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = (e.target?.result as string) || '';
+        resolve(parseStudentListText(text, activeClassId));
+      };
+      reader.onerror = () => {
+        resolve({ success: false, message: 'Lỗi mở tệp: ' + err.message, students: [] });
+      };
+      reader.readAsText(file, 'UTF-8');
+    });
+  }
+}
