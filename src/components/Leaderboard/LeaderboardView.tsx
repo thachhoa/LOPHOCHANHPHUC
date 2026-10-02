@@ -32,7 +32,7 @@ export const LeaderboardView: React.FC = () => {
           Bảng Vinh Danh Ngôi Sao Sáng
         </div>
         <h2 className="text-2xl font-extrabold text-slate-800 tracking-tight">
-          Bảng Xếp Hạng Lớp {activeClass.name}
+          Bảng Xếp Hạng Lớp {activeClass?.name || 'Học Hạnh Phúc'}
         </h2>
         <p className="text-xs text-slate-500">
           Khen thưởng và tôn vinh những nỗ lực, thành tích học tập và rèn luyện đạo đức xuất sắc
