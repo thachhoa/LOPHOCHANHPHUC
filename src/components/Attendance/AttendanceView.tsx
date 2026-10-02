@@ -13,6 +13,7 @@ import {
   FileText,
   Save,
   Check,
+  UserX,
 } from 'lucide-react';
 import { useClassroom } from '../../context/ClassroomContext';
 import { AttendanceStatus } from '../../types';
@@ -36,6 +37,7 @@ export const AttendanceView: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [notesText, setNotesText] = useState(currentAttendanceNotes);
   const [isNotesSaved, setIsNotesSaved] = useState(false);
+  const [lookupDate, setLookupDate] = useState(selectedDate);
 
   // Sync notes on date change
   React.useEffect(() => {
@@ -443,7 +445,7 @@ export const AttendanceView: React.FC = () => {
           <button
             id="btn-save-attendance-notes"
             onClick={handleSaveNotes}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
               isNotesSaved ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
             }`}
           >
@@ -459,6 +461,163 @@ export const AttendanceView: React.FC = () => {
           placeholder="Nhập lý do học sinh đi muộn / vắng mặt, ghi chú sức khoẻ của các em trong ngày..."
           className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:ring-2 focus:ring-emerald-500"
         />
+      </div>
+
+      {/* Tra Cứu Danh Sách Học Sinh Nghỉ Theo Ngày */}
+      <div className="bg-white rounded-3xl border border-slate-100 shadow-xs p-5 space-y-4">
+        {/* Header & Date Lookup Control */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center font-bold">
+              <UserX className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-800 text-sm">Tra Cứu Danh Sách Học Sinh Nghỉ Theo Ngày</h3>
+              <p className="text-[10px] text-slate-400">Bấm chọn ngày bất kỳ để hiển thị số lượng và danh sách học sinh nghỉ học</p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
+              <Calendar className="w-4 h-4 text-indigo-500" />
+              <input
+                id="input-lookup-absence-date"
+                type="date"
+                value={lookupDate}
+                onChange={e => setLookupDate(e.target.value)}
+                className="text-xs font-bold text-slate-800 bg-transparent outline-none cursor-pointer"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setLookupDate(selectedDate)}
+              className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/60 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+            >
+              Chọn ngày đang điểm danh ({selectedDate.split('-').reverse().join('/')})
+            </button>
+          </div>
+        </div>
+
+        {/* Lookup Results */}
+        {(() => {
+          const lookupRecord = attendanceRecords.find(
+            r => r.classId === activeClass.id && r.date === lookupDate
+          );
+          
+          const dateParts = lookupDate.split('-');
+          const formattedLookupDate = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
+
+          if (!lookupRecord || !lookupRecord.records) {
+            return (
+              <div className="p-8 text-center bg-slate-50/60 rounded-2xl border border-slate-200/60 text-xs text-slate-500 space-y-1">
+                <p className="font-bold text-slate-700">Chưa có dữ liệu điểm danh cho ngày {formattedLookupDate}</p>
+                <p className="text-[11px] text-slate-400">Giáo viên chưa thực hiện điểm danh hoặc chưa tích chọn điểm danh cho ngày này.</p>
+              </div>
+            );
+          }
+
+          const excusedList = currentStudents.filter(s => lookupRecord.records[s.id] === 'excused');
+          const unexcusedList = currentStudents.filter(s => lookupRecord.records[s.id] === 'unexcused');
+          const lateList = currentStudents.filter(s => lookupRecord.records[s.id] === 'late');
+          const absentList = [...excusedList, ...unexcusedList];
+
+          return (
+            <div className="space-y-4">
+              {/* Summary Stats Header */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="p-3.5 rounded-2xl bg-rose-50/80 border border-rose-200/80 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] text-rose-800 font-bold uppercase tracking-wider block">Tổng số HS nghỉ</span>
+                    <span className="text-xl font-black text-rose-700">{absentList.length} học sinh</span>
+                  </div>
+                  <UserX className="w-6 h-6 text-rose-500" />
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-blue-50/80 border border-blue-200/80 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] text-blue-800 font-bold uppercase tracking-wider block">Vắng có phép</span>
+                    <span className="text-xl font-black text-blue-700">{excusedList.length} em</span>
+                  </div>
+                  <HelpCircle className="w-6 h-6 text-blue-500" />
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-pink-50/80 border border-pink-200/80 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] text-pink-800 font-bold uppercase tracking-wider block">Vắng không phép</span>
+                    <span className="text-xl font-black text-pink-700">{unexcusedList.length} em</span>
+                  </div>
+                  <XCircle className="w-6 h-6 text-pink-500" />
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200/80 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] text-amber-800 font-bold uppercase tracking-wider block">Đi muộn</span>
+                    <span className="text-xl font-black text-amber-700">{lateList.length} em</span>
+                  </div>
+                  <Clock className="w-6 h-6 text-amber-500" />
+                </div>
+              </div>
+
+              {/* Absent List Table */}
+              {absentList.length > 0 ? (
+                <div className="border border-slate-200/80 rounded-2xl overflow-hidden">
+                  <div className="bg-slate-50 p-3 border-b border-slate-200/80 text-xs font-bold text-slate-700 flex items-center justify-between">
+                    <span>Danh sách học sinh nghỉ ngày {formattedLookupDate} ({absentList.length} học sinh)</span>
+                    {lookupRecord.notes && (
+                      <span className="text-[11px] font-normal text-slate-500 italic max-w-xs truncate">
+                        Ghi chú ngày: {lookupRecord.notes}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="divide-y divide-slate-100 max-h-72 overflow-y-auto">
+                    {absentList.map((s, idx) => {
+                      const st = lookupRecord.records[s.id];
+                      return (
+                        <div
+                          key={s.id}
+                          onClick={() => setSelectedStudent(s)}
+                          className="p-3 hover:bg-slate-50 transition-colors flex items-center justify-between gap-3 text-xs cursor-pointer"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="font-bold text-slate-400 w-5 text-center">{idx + 1}</span>
+                            <img src={s.avatar} alt={s.name} className="w-9 h-9 rounded-full object-cover border border-slate-200 shrink-0" referrerPolicy="no-referrer" />
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h5 className="font-bold text-slate-800">{s.name}</h5>
+                                <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-semibold">{s.studentCode}</span>
+                              </div>
+                              <p className="text-[11px] text-slate-500 mt-0.5">
+                                PH: {s.parentName} — SĐT: <a href={`tel:${s.parentPhone}`} className="text-emerald-600 font-semibold hover:underline" onClick={e => e.stopPropagation()}>{s.parentPhone}</a>
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`px-2.5 py-1 rounded-xl text-[11px] font-bold border ${
+                                st === 'excused'
+                                  ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                  : 'bg-rose-50 text-rose-700 border-rose-200'
+                              }`}
+                            >
+                              {st === 'excused' ? '🔵 Vắng có phép' : '🔴 Vắng không phép'}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-6 bg-emerald-50/60 border border-emerald-200/80 rounded-2xl text-center text-xs text-emerald-800 font-bold flex items-center justify-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                  Lớp học đi học đầy đủ 100%! Không có học sinh nào nghỉ trong ngày {formattedLookupDate}.
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
