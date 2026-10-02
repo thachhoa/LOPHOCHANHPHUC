@@ -196,7 +196,7 @@ export const exportAttendanceReportDocx = async (
             spacing: { after: 300 },
             children: [
               new TextRun({
-                text: `Ngày: ${selectedDate} | Năm học: ${activeClass.academicYear}`,
+                text: `Ngày: ${selectedDate} | Năm học: ${activeClass?.academicYear || '2025-2026'}`,
                 italics: true,
                 size: 20,
               }),
@@ -208,9 +208,9 @@ export const exportAttendanceReportDocx = async (
             spacing: { before: 100, after: 100 },
             children: [
               new TextRun({ text: 'Lớp học: ', bold: true, size: 22 }),
-              new TextRun({ text: `${activeClass.name} (${activeClass.code})   |   `, size: 22 }),
+              new TextRun({ text: `${activeClass?.name || 'Lớp'} (${activeClass?.code || ''})   |   `, size: 22 }),
               new TextRun({ text: 'Giáo viên chủ nhiệm: ', bold: true, size: 22 }),
-              new TextRun({ text: activeClass.teacherName, size: 22 }),
+              new TextRun({ text: activeClass?.teacherName || 'Giáo viên', size: 22 }),
             ],
           }),
 
