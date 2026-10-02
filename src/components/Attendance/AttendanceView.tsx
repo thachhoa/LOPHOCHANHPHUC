@@ -493,19 +493,19 @@ export const AttendanceView: React.FC = () => {
               onClick={() => setLookupDate(selectedDate)}
               className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/60 rounded-xl text-xs font-bold transition-colors cursor-pointer"
             >
-              Chọn ngày đang điểm danh ({selectedDate.split('-').reverse().join('/')})
+              Chọn ngày đang điểm danh ({selectedDate ? selectedDate.split('-').reverse().join('/') : ''})
             </button>
           </div>
         </div>
 
         {/* Lookup Results */}
         {(() => {
-          const lookupRecord = attendanceRecords.find(
-            r => r.classId === activeClass.id && r.date === lookupDate
+          const lookupRecord = (attendanceRecords || []).find(
+            r => r && r.classId === activeClass?.id && r.date === lookupDate
           );
           
-          const dateParts = lookupDate.split('-');
-          const formattedLookupDate = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
+          const dateParts = (lookupDate || '').split('-');
+          const formattedLookupDate = dateParts.length === 3 ? `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}` : (lookupDate || '');
 
           if (!lookupRecord || !lookupRecord.records) {
             return (
@@ -516,9 +516,10 @@ export const AttendanceView: React.FC = () => {
             );
           }
 
-          const excusedList = currentStudents.filter(s => lookupRecord.records[s.id] === 'excused');
-          const unexcusedList = currentStudents.filter(s => lookupRecord.records[s.id] === 'unexcused');
-          const lateList = currentStudents.filter(s => lookupRecord.records[s.id] === 'late');
+          const recs = lookupRecord.records || {};
+          const excusedList = (currentStudents || []).filter(s => recs[s.id] === 'excused');
+          const unexcusedList = (currentStudents || []).filter(s => recs[s.id] === 'unexcused');
+          const lateList = (currentStudents || []).filter(s => recs[s.id] === 'late');
           const absentList = [...excusedList, ...unexcusedList];
 
           return (
