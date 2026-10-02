@@ -36,8 +36,8 @@ export const SeatingChartView: React.FC = () => {
   const [targetSlotToAssign, setTargetSlotToAssign] = useState<{ row: number; col: number } | null>(null);
 
   // Grid layout (e.g. 4 rows x 6 columns)
-  const rows = activeClass.rows || 4;
-  const cols = activeClass.cols || 6;
+  const rows = activeClass?.rows || 4;
+  const cols = activeClass?.cols || 6;
 
   // Unseated students
   const unseatedStudents = currentStudents.filter(
