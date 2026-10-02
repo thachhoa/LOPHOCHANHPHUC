@@ -87,7 +87,7 @@ export const Header: React.FC = () => {
     setIsParsingFile(true);
 
     try {
-      const res = await parseStudentFileUniversal(file, activeClass.id);
+      const res = await parseStudentFileUniversal(file, activeClass?.id || 'class-3a');
       if (!res.success) {
         setImportError(res.message || 'Lỗi đọc tệp!');
       } else {
@@ -119,14 +119,14 @@ export const Header: React.FC = () => {
     e.preventDefault();
     if (!newStudentName.trim()) return;
 
-    const nextCode = `HS${activeClass.grade}-${String(currentStudents.length + 1).padStart(2, '0')}`;
+    const nextCode = `HS${activeClass?.grade || 3}-${String(currentStudents.length + 1).padStart(2, '0')}`;
     const defaultAvatars = {
       male: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=200&auto=format&fit=crop&q=80',
       female: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200&auto=format&fit=crop&q=80',
     };
 
     addStudent({
-      classId: activeClass.id,
+      classId: activeClass?.id || 'class-3a',
       studentCode: nextCode,
       name: newStudentName.trim(),
       gender: newStudentGender,
@@ -171,15 +171,15 @@ export const Header: React.FC = () => {
       <div className="flex items-center gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="font-bold text-slate-800 text-lg">{activeClass.name}</h2>
-            {activeClass.code && (
+            <h2 className="font-bold text-slate-800 text-lg">{activeClass?.name || 'Lớp Học Hạnh Phúc'}</h2>
+            {activeClass?.code && (
               <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-md border border-emerald-100">
                 Mã: {activeClass.code}
               </span>
             )}
           </div>
           <p className="text-xs text-slate-500">
-            {activeClass.roomName} • GVCN: <span className="font-medium text-slate-700">{activeClass.teacherName}</span>
+            {activeClass?.roomName || 'Phòng học'} • GVCN: <span className="font-medium text-slate-700">{activeClass?.teacherName || 'Giáo viên'}</span>
           </p>
         </div>
       </div>
