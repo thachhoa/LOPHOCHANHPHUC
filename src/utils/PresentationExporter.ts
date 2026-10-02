@@ -30,7 +30,7 @@ export const exportLeaderboardPptx = async (activeClass: Classroom, students: St
     fontFace: 'Arial',
   });
 
-  slide1.addText(`Lớp học: ${activeClass.name}\nNăm học: ${activeClass.academicYear}\nGiáo viên chủ nhiệm: ${activeClass.teacherName}`, {
+  slide1.addText(`Lớp học: ${activeClass?.name || 'Lớp'}\nNăm học: ${activeClass?.academicYear || '2025-2026'}\nGiáo viên chủ nhiệm: ${activeClass?.teacherName || 'Giáo viên'}`, {
     x: 0.5,
     y: 3.2,
     w: 12.3,
@@ -234,7 +234,7 @@ export const exportLeaderboardPptx = async (activeClass: Classroom, students: St
     });
   }
 
-  await pptx.writeFile({ fileName: `VinhDanh_${activeClass.code}.pptx` });
+  await pptx.writeFile({ fileName: `VinhDanh_${activeClass?.code || 'Lop'}.pptx` });
 };
 
 export const exportSeatingPptx = async (activeClass: Classroom, students: Student[]) => {
@@ -254,7 +254,7 @@ export const exportSeatingPptx = async (activeClass: Classroom, students: Studen
     line: { color: 'B45309', width: 3 }, // bronze border
   });
 
-  slide.addText(`🏫 SƠ ĐỒ CHỖ NGỒI - LỚP ${activeClass.name.toUpperCase()}`, {
+  slide.addText(`🏫 SƠ ĐỒ CHỖ NGỒI - LỚP ${(activeClass?.name || 'LỚP HỌC').toUpperCase()}`, {
     x: 2.0,
     y: 0.3,
     w: 9.3,
@@ -289,8 +289,8 @@ export const exportSeatingPptx = async (activeClass: Classroom, students: Studen
 
   // Physical grid layout coordinates calculation
   // PowerPoint width 13.33 inches, height 7.5 inches
-  const rowsCount = activeClass.rows || 4;
-  const colsCount = activeClass.cols || 6;
+  const rowsCount = activeClass?.rows || 4;
+  const colsCount = activeClass?.cols || 6;
   const numGroups = colsCount / 2;
 
   const startX = 0.8;
@@ -371,5 +371,5 @@ export const exportSeatingPptx = async (activeClass: Classroom, students: Studen
     }
   }
 
-  await pptx.writeFile({ fileName: `SoDoLop_${activeClass.code}.pptx` });
+  await pptx.writeFile({ fileName: `SoDoLop_${activeClass?.code || 'Lop'}.pptx` });
 };
