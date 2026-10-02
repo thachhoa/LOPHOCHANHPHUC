@@ -26,7 +26,7 @@ export const DashboardView: React.FC = () => {
   // 2. Attendance Calculations
   // Get attendance data for the last 5 days
   const classAttendanceRecords = attendanceRecords
-    .filter((r) => r.classId === activeClass.id)
+    .filter((r) => r && r.classId === activeClass?.id)
     .sort((a, b) => b.date.localeCompare(a.date)) // Latest first
     .slice(0, 5)
     .reverse(); // Chronological for chart
@@ -62,7 +62,7 @@ export const DashboardView: React.FC = () => {
   let totalPresentDays = 0;
   let totalOpportunities = 0;
   attendanceRecords
-    .filter((r) => r.classId === activeClass.id)
+    .filter((r) => r && r.classId === activeClass?.id)
     .forEach((record) => {
       currentStudents.forEach((student) => {
         const status = record.records[student.id] || 'present';
