@@ -306,7 +306,7 @@ export const AttendanceView: React.FC = () => {
         {/* Student Row Cards */}
         <div className="divide-y divide-slate-100">
           {filteredStudents.map((student, index) => {
-            const currentStatus = todayAttendance[student.id] || 'present';
+            const currentStatus = todayAttendance[student.id];
 
             return (
               <div
@@ -330,17 +330,19 @@ export const AttendanceView: React.FC = () => {
                       />
                     </div>
                     {/* Status dot */}
-                    <span
-                      className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-white ${
-                        currentStatus === 'present'
-                          ? 'bg-emerald-500'
-                          : currentStatus === 'late'
-                          ? 'bg-amber-500'
-                          : currentStatus === 'excused'
-                          ? 'bg-blue-500'
-                          : 'bg-rose-500'
-                      }`}
-                    />
+                    {currentStatus && (
+                      <span
+                        className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-white ${
+                          currentStatus === 'present'
+                            ? 'bg-emerald-500'
+                            : currentStatus === 'late'
+                            ? 'bg-amber-500'
+                            : currentStatus === 'excused'
+                            ? 'bg-blue-500'
+                            : 'bg-rose-500'
+                        }`}
+                      />
+                    )}
                   </div>
 
                   <div>
@@ -352,7 +354,7 @@ export const AttendanceView: React.FC = () => {
                         {student.studentCode}
                       </span>
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
+                    <div className="flex flex-wrap items-center gap-2.5 text-xs text-slate-500 mt-0.5">
                       <span>PH: {student.parentName} ({student.parentPhone})</span>
                       <span className="text-amber-600 font-bold flex items-center gap-0.5">
                         ⭐ {student.stars} sao
@@ -367,13 +369,13 @@ export const AttendanceView: React.FC = () => {
                   <button
                     id={`btn-att-present-${student.id}`}
                     onClick={() => setStudentAttendance(student.id, 'present')}
-                    className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                       currentStatus === 'present'
-                        ? 'bg-emerald-600 text-white shadow-xs'
-                        : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+                        ? 'bg-emerald-600 text-white shadow-xs border border-emerald-600'
+                        : 'bg-slate-50/80 text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 border border-slate-200/70'
                     }`}
                   >
-                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <CheckCircle2 className={`w-3.5 h-3.5 ${currentStatus === 'present' ? 'text-white' : 'text-emerald-600'}`} />
                     Có mặt
                   </button>
 
@@ -381,13 +383,13 @@ export const AttendanceView: React.FC = () => {
                   <button
                     id={`btn-att-late-${student.id}`}
                     onClick={() => setStudentAttendance(student.id, 'late')}
-                    className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                       currentStatus === 'late'
-                        ? 'bg-amber-500 text-white shadow-xs'
-                        : 'bg-amber-50 text-amber-800 hover:bg-amber-100'
+                        ? 'bg-amber-500 text-white shadow-xs border border-amber-500'
+                        : 'bg-slate-50/80 text-slate-700 hover:bg-amber-50 hover:text-amber-700 border border-slate-200/70'
                     }`}
                   >
-                    <Clock className="w-3.5 h-3.5" />
+                    <Clock className={`w-3.5 h-3.5 ${currentStatus === 'late' ? 'text-white' : 'text-amber-500'}`} />
                     Đi muộn
                   </button>
 
@@ -395,13 +397,13 @@ export const AttendanceView: React.FC = () => {
                   <button
                     id={`btn-att-excused-${student.id}`}
                     onClick={() => setStudentAttendance(student.id, 'excused')}
-                    className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                       currentStatus === 'excused'
-                        ? 'bg-blue-600 text-white shadow-xs'
-                        : 'bg-blue-50 text-blue-800 hover:bg-blue-100'
+                        ? 'bg-blue-600 text-white shadow-xs border border-blue-600'
+                        : 'bg-slate-50/80 text-slate-700 hover:bg-blue-50 hover:text-blue-700 border border-slate-200/70'
                     }`}
                   >
-                    <HelpCircle className="w-3.5 h-3.5" />
+                    <HelpCircle className={`w-3.5 h-3.5 ${currentStatus === 'excused' ? 'text-white' : 'text-blue-500'}`} />
                     Có phép
                   </button>
 
@@ -409,13 +411,13 @@ export const AttendanceView: React.FC = () => {
                   <button
                     id={`btn-att-unexcused-${student.id}`}
                     onClick={() => setStudentAttendance(student.id, 'unexcused')}
-                    className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                       currentStatus === 'unexcused'
-                        ? 'bg-rose-600 text-white shadow-xs'
-                        : 'bg-rose-50 text-rose-800 hover:bg-rose-100'
+                        ? 'bg-rose-600 text-white shadow-xs border border-rose-600'
+                        : 'bg-slate-50/80 text-slate-700 hover:bg-rose-50 hover:text-rose-700 border border-slate-200/70'
                     }`}
                   >
-                    <XCircle className="w-3.5 h-3.5" />
+                    <XCircle className={`w-3.5 h-3.5 ${currentStatus === 'unexcused' ? 'text-white' : 'text-rose-500'}`} />
                     Không phép
                   </button>
                 </div>
