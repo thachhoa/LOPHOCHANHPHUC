@@ -25,7 +25,7 @@ export const TimetableView: React.FC = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSlot, setEditingSlot] = useState<TimetableSlot | null>(null);
-  const [viewMode, setViewMode] = useState<'grid' | 'file'>(activeClass.timetableFile ? 'file' : 'grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'file'>(activeClass?.timetableFile ? 'file' : 'grid');
   const [uploadError, setUploadError] = useState('');
 
   const [formData, setFormData] = useState<{
@@ -40,8 +40,8 @@ export const TimetableView: React.FC = () => {
     dayOfWeek: 2,
     period: 1,
     subject: 'Toán',
-    teacher: activeClass.teacherName,
-    room: activeClass.roomName,
+    teacher: activeClass?.teacherName || 'Giáo viên',
+    room: activeClass?.roomName || 'Phòng học',
     timeRange: '07:30 - 08:10',
     color: '#10B981',
   });
