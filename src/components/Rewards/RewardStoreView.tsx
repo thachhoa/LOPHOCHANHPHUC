@@ -71,7 +71,7 @@ export const RewardStoreView: React.FC = () => {
       description: '',
       color: '#3B82F6',
       icon: 'Gift',
-      classIds: [activeClass.id],
+      classIds: [activeClass?.id || 'class-3a'],
     });
     setIsRewardFormOpen(true);
   };
