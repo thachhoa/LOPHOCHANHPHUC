@@ -797,3 +797,5 @@ export const RewardStoreView: React.FC = () => {
     </div>
   );
 };
+
+export default RewardStoreView;
