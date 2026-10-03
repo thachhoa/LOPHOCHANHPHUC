@@ -681,3 +681,5 @@ export const LuckyWheelModal: React.FC = () => {
     </AnimatePresence>
   );
 };
+
+export default LuckyWheelModal;
