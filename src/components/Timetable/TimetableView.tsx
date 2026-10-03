@@ -594,3 +594,5 @@ export const TimetableView: React.FC = () => {
     </div>
   );
 };
+
+export default TimetableView;
