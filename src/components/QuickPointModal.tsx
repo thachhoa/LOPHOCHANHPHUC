@@ -246,3 +246,5 @@ export const QuickPointModal: React.FC = () => {
     </AnimatePresence>
   );
 };
+
+export default QuickPointModal;
