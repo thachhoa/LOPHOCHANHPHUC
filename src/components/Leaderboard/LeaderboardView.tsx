@@ -204,3 +204,5 @@ export const LeaderboardView: React.FC = () => {
     </div>
   );
 };
+
+export default LeaderboardView;
