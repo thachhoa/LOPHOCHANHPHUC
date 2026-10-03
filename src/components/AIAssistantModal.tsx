@@ -372,3 +372,5 @@ Ghi chú hiện tại: ${targetStudent.notes || 'Không có'}
     </AnimatePresence>
   );
 };
+
+export default AIAssistantModal;
