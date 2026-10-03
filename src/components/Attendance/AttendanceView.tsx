@@ -624,3 +624,5 @@ export const AttendanceView: React.FC = () => {
     </div>
   );
 };
+
+export default AttendanceView;
