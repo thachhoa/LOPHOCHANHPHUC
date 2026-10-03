@@ -274,3 +274,5 @@ export const AvatarCropModal: React.FC = () => {
     </AnimatePresence>
   );
 };
+
+export default AvatarCropModal;
