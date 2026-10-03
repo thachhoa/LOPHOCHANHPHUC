@@ -467,3 +467,5 @@ export const SeatingChartView: React.FC = () => {
     </div>
   );
 };
+
+export default SeatingChartView;
