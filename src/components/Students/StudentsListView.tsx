@@ -359,3 +359,5 @@ export const StudentsListView: React.FC = () => {
     </div>
   );
 };
+
+export default StudentsListView;
