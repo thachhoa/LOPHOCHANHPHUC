@@ -21,6 +21,10 @@ export const QuickPointModal: React.FC = () => {
   const [customReason, setCustomReason] = useState<string>('');
   const [activePresetType, setActivePresetType] = useState<'positive' | 'negative'>('positive');
 
+  // Track per-preset star adjustments: key = index, value = adjusted point amount
+  const [positiveAdjustments, setPositiveAdjustments] = useState<Record<number, number>>({});
+  const [negativeAdjustments, setNegativeAdjustments] = useState<Record<number, number>>({});
+
   React.useEffect(() => {
     if (quickPointTargetStudent) {
       setSelectedStudentId(quickPointTargetStudent.id);
@@ -50,6 +54,25 @@ export const QuickPointModal: React.FC = () => {
     { label: 'Chưa hoàn thành bài tập về nhà', points: -5, icon: '⚠️' },
     { label: 'Mất trật tự khi xếp hàng', points: -3, icon: '🛑' },
   ];
+
+  // Get effective adjusted value for a preset
+  const getAdjustedPositive = (idx: number, defaultPts: number) =>
+    positiveAdjustments[idx] !== undefined ? positiveAdjustments[idx] : defaultPts;
+
+  const getAdjustedNegative = (idx: number, defaultPts: number) =>
+    negativeAdjustments[idx] !== undefined ? negativeAdjustments[idx] : defaultPts;
+
+  const adjustPositive = (idx: number, defaultPts: number, delta: number) => {
+    const current = getAdjustedPositive(idx, defaultPts);
+    const next = Math.max(1, Math.min(50, current + delta));
+    setPositiveAdjustments(prev => ({ ...prev, [idx]: next }));
+  };
+
+  const adjustNegative = (idx: number, defaultPts: number, delta: number) => {
+    const current = Math.abs(getAdjustedNegative(idx, defaultPts));
+    const next = Math.max(1, Math.min(50, current + delta));
+    setNegativeAdjustments(prev => ({ ...prev, [idx]: -next }));
+  };
 
   const handleApplyPreset = (reason: string, pts: number) => {
     if (!selectedStudentId) return;
@@ -92,10 +115,10 @@ export const QuickPointModal: React.FC = () => {
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
-          className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-lg w-full overflow-hidden flex flex-col"
+          className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-lg w-full overflow-hidden flex flex-col max-h-[90vh]"
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-linear-to-r from-amber-50 via-yellow-50 to-orange-50">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-linear-to-r from-amber-50 via-yellow-50 to-orange-50 shrink-0">
             <div className="flex items-center gap-2.5">
               <div className="w-9 h-9 rounded-xl bg-amber-400 text-amber-950 flex items-center justify-center font-bold shadow-xs">
                 <Star className="w-5 h-5 fill-amber-950" />
@@ -114,7 +137,7 @@ export const QuickPointModal: React.FC = () => {
             </button>
           </div>
 
-          <div className="p-6 space-y-5">
+          <div className="p-6 space-y-5 overflow-y-auto">
             {/* Student Selector */}
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wider">
@@ -172,37 +195,114 @@ export const QuickPointModal: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-2">
                 {activePresetType === 'positive'
-                  ? POSITIVE_PRESETS.map((p, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => handleApplyPreset(p.label, p.points)}
-                        className="p-2.5 rounded-xl border border-emerald-100 bg-emerald-50/50 hover:bg-emerald-100/70 hover:border-emerald-300 text-left transition-all flex items-start gap-2 group"
-                      >
-                        <span className="text-lg">{p.icon}</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-slate-800 leading-tight group-hover:text-emerald-900">
-                            {p.label}
-                          </p>
-                          <span className="text-[11px] font-bold text-emerald-600">+{p.points} sao</span>
+                  ? POSITIVE_PRESETS.map((p, idx) => {
+                      const adjustedPts = getAdjustedPositive(idx, p.points);
+                      return (
+                        <div
+                          key={idx}
+                          className="rounded-xl border border-emerald-100 bg-emerald-50/50 hover:border-emerald-200 transition-all flex flex-col overflow-hidden"
+                        >
+                          {/* Card top: label info */}
+                          <button
+                            onClick={() => handleApplyPreset(p.label, adjustedPts)}
+                            className="flex items-start gap-2 p-2.5 text-left group flex-1 hover:bg-emerald-100/60 transition-colors"
+                          >
+                            <span className="text-lg shrink-0">{p.icon}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-slate-800 leading-tight group-hover:text-emerald-900">
+                                {p.label}
+                              </p>
+                              <span className="text-[11px] font-bold text-emerald-600">
+                                +{adjustedPts} sao
+                              </span>
+                            </div>
+                          </button>
+
+                          {/* Adjustment controls */}
+                          <div className="flex items-center justify-between px-2 pb-2 gap-1">
+                            <button
+                              type="button"
+                              onClick={e => { e.stopPropagation(); adjustPositive(idx, p.points, -1); }}
+                              className="w-6 h-6 rounded-lg bg-white border border-slate-200 hover:bg-rose-50 hover:border-rose-300 flex items-center justify-center text-slate-500 hover:text-rose-600 transition-all shrink-0"
+                              title="Giảm 1 sao"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <div className="flex-1 text-center">
+                              <span className="text-xs font-extrabold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-lg">
+                                +{adjustedPts}⭐
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={e => { e.stopPropagation(); adjustPositive(idx, p.points, 1); }}
+                              className="w-6 h-6 rounded-lg bg-white border border-slate-200 hover:bg-emerald-50 hover:border-emerald-300 flex items-center justify-center text-slate-500 hover:text-emerald-600 transition-all shrink-0"
+                              title="Tăng 1 sao"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
                         </div>
-                      </button>
-                    ))
-                  : NEGATIVE_PRESETS.map((p, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => handleApplyPreset(p.label, p.points)}
-                        className="p-2.5 rounded-xl border border-rose-100 bg-rose-50/50 hover:bg-rose-100/70 hover:border-rose-300 text-left transition-all flex items-start gap-2 group"
-                      >
-                        <span className="text-lg">{p.icon}</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-slate-800 leading-tight group-hover:text-rose-900">
-                            {p.label}
-                          </p>
-                          <span className="text-[11px] font-bold text-rose-600">{p.points} sao</span>
+                      );
+                    })
+                  : NEGATIVE_PRESETS.map((p, idx) => {
+                      const adjustedPts = getAdjustedNegative(idx, p.points);
+                      const displayVal = Math.abs(adjustedPts);
+                      return (
+                        <div
+                          key={idx}
+                          className="rounded-xl border border-rose-100 bg-rose-50/50 hover:border-rose-200 transition-all flex flex-col overflow-hidden"
+                        >
+                          {/* Card top: label info */}
+                          <button
+                            onClick={() => handleApplyPreset(p.label, adjustedPts)}
+                            className="flex items-start gap-2 p-2.5 text-left group flex-1 hover:bg-rose-100/60 transition-colors"
+                          >
+                            <span className="text-lg shrink-0">{p.icon}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-slate-800 leading-tight group-hover:text-rose-900">
+                                {p.label}
+                              </p>
+                              <span className="text-[11px] font-bold text-rose-600">
+                                -{displayVal} sao
+                              </span>
+                            </div>
+                          </button>
+
+                          {/* Adjustment controls */}
+                          <div className="flex items-center justify-between px-2 pb-2 gap-1">
+                            <button
+                              type="button"
+                              onClick={e => { e.stopPropagation(); adjustNegative(idx, p.points, -1); }}
+                              className="w-6 h-6 rounded-lg bg-white border border-slate-200 hover:bg-emerald-50 hover:border-emerald-300 flex items-center justify-center text-slate-500 hover:text-emerald-600 transition-all shrink-0"
+                              title="Giảm mức trừ (nhẹ hơn)"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <div className="flex-1 text-center">
+                              <span className="text-xs font-extrabold text-rose-700 bg-rose-100 px-2 py-0.5 rounded-lg">
+                                -{displayVal}⭐
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={e => { e.stopPropagation(); adjustNegative(idx, p.points, 1); }}
+                              className="w-6 h-6 rounded-lg bg-white border border-slate-200 hover:bg-rose-50 hover:border-rose-300 flex items-center justify-center text-slate-500 hover:text-rose-600 transition-all shrink-0"
+                              title="Tăng mức trừ (nặng hơn)"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
                         </div>
-                      </button>
-                    ))}
+                      );
+                    })}
               </div>
+
+              {/* Hint text */}
+              <p className="text-[10px] text-slate-400 mt-2 flex items-center gap-1">
+                <Sparkles className="w-3 h-3" />
+                Nhấn <span className="font-bold">−</span> / <span className="font-bold">+</span> để điều chỉnh số sao, sau đó nhấn vào thẻ để áp dụng
+              </p>
             </div>
 
             {/* Custom Input */}
@@ -217,15 +317,31 @@ export const QuickPointModal: React.FC = () => {
                   onChange={e => setCustomReason(e.target.value)}
                   className="flex-1 px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-amber-500"
                 />
-                <input
-                  id="input-custom-point-amount"
-                  type="number"
-                  min="1"
-                  max="100"
-                  value={customPoints}
-                  onChange={e => setCustomPoints(parseInt(e.target.value) || 1)}
-                  className="w-16 px-2 py-2 border border-slate-300 rounded-xl text-xs text-center font-bold"
-                />
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setCustomPoints(v => Math.max(1, v - 1))}
+                    className="w-7 h-8 rounded-lg bg-slate-100 hover:bg-rose-100 border border-slate-200 flex items-center justify-center text-slate-600 hover:text-rose-600 transition-all"
+                  >
+                    <Minus className="w-3 h-3" />
+                  </button>
+                  <input
+                    id="input-custom-point-amount"
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={customPoints}
+                    onChange={e => setCustomPoints(parseInt(e.target.value) || 1)}
+                    className="w-12 px-1 py-2 border border-slate-300 rounded-xl text-xs text-center font-bold"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setCustomPoints(v => Math.min(100, v + 1))}
+                    className="w-7 h-8 rounded-lg bg-slate-100 hover:bg-emerald-100 border border-slate-200 flex items-center justify-center text-slate-600 hover:text-emerald-600 transition-all"
+                  >
+                    <Plus className="w-3 h-3" />
+                  </button>
+                </div>
                 <button
                   id="btn-apply-custom-point"
                   type="submit"
